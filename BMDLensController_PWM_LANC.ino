@@ -7,6 +7,7 @@
 #include "Lens.hpp"
 #include "GlobalConfiguration.hpp"
 
+#if 1
 /**
   * @brief  System Clock Configuration
   *         The system Clock is configured as follow :
@@ -61,6 +62,7 @@ void SystemClock_Config(void)
     Error_Handler();
   }
 }
+#endif
 
 /*
  * PIN configuration
@@ -68,24 +70,31 @@ void SystemClock_Config(void)
 #define ZoomADC (PA4)  // ADC12_IN4 / BluePill.PIN09
 #define IrisADC (PA5)  // ADC12_IN5 / BluePill.PIN10
 #define FocusADC (PA6) // ADC12_IN6 / BluePill.PIN11
+#ifdef __HAS_SPEED_CONTROL__
 #define SpeedADC (PA7) // ADC12_IN7 / BluePill.PIN12
+#endif
 
 #define FocusPWM (PB9)  // TIM4_4 / BluePill.PIN37
-#define FocusDIR (PB14) // GPIO / BluePill.PIN21
+#define FocusDIR (PB5) // GPIO / BluePill.PIN33
 
 #define IrisPWM (PB8)   // TIM4_3 / BluePill.PIN36
-#define IrisDIR (PB13)  // GPIO / BluePill.PIN22
+#define IrisDIR (PB4)  // GPIO / BluePill.PIN32
+
+#ifdef __HAS_EXTENDER_SWITCH__
+#define ZoomExtSwitch (PB6) // SCL1 BluePill.PIN34
+#endif
 
 #define ZoomPWM (PB7)   // TIM4_2 / BluePill.PIN35
-#define ZoomDIR (PB12)  // GPIO / BluePill.PIN23
+#define ZoomDIR (PB3)  // GPIO / BluePill.PIN31
 
 #define CommandUartRx (PB11) // UART3_RX / BluePill.PIN16
-#define CommandUartTx (PB10) // UART3_TX / BluePill.PIN16
+#define CommandUartTx (PB10) // UART3_TX / BluePill.PIN15
 
 #define LancUartRx (PA3) // UART2_RX / BluePill.PIN08
 #define LancUartTx (PA2) // UART2_TX / BluePill.PIN07
+#ifdef __HAS_LANC_GPIO__
 #define LancGPIO   (PA1) // GPIO / BluePill.PIN06
-
+#endif
 
 int ledStatus;
 uint32_t oldSeconds;
@@ -102,7 +111,9 @@ void setup() {
   Serial.begin(115200);
   commandSerial.begin(9600);
 
+#ifdef __HAS_LANC_GPIO__
   pinMode(LancGPIO, INPUT_PULLUP);
+#endif
   lancSerial.begin(9600, SERIAL_8N2);
 
   pinMode(LED_BUILTIN, INPUT_PULLUP);
@@ -140,18 +151,23 @@ void setup() {
 }
 
 void loop() {
+
+#if 0
   focusServo.readAdc();
   zoomServo.readAdc();
   irisServo.readAdc();
+#endif
   uint32_t newMillis = millis();
   if(newMillis != oldMillis){
     oldMillis = newMillis;
+#if 0
     powerPresent = (zoomServo.getAdcValue() > 1100);
     if(powerPresent){
       focusServo.run();
       zoomServo.run();
       irisServo.run();
     }
+#endif
   }
   {
     // USB channel
