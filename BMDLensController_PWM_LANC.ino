@@ -116,7 +116,8 @@ void setup() {
 #endif
   lancSerial.begin(9600, SERIAL_8N2);
 
-  pinMode(LED_BUILTIN, INPUT_PULLUP);
+//  pinMode(LED_BUILTIN, INPUT_PULLUP);
+  pinMode(LED_BUILTIN, OUTPUT);
 
   ledStatus = HIGH;
   digitalWrite(LED_BUILTIN, ledStatus);
@@ -139,9 +140,9 @@ void setup() {
   analyzerSerial.addCallback('&', handleAmpersAnd);
   analyzerSerial.addCallback('Z', handleATZ);
 
-  focusServo.setPins(FocusADC, FocusPWM, FocusDIR);
-  zoomServo.setPins(ZoomADC, ZoomPWM, ZoomDIR);
-  irisServo.setPins(IrisADC, IrisPWM, IrisDIR);
+  focusServo.setPins(FocusADC, FocusPWM, FocusDIR, 0);
+  zoomServo.setPins(ZoomADC, ZoomPWM, ZoomDIR, 0);
+  irisServo.setPins(IrisADC, IrisPWM, IrisDIR, 0);
 
   focusServo.setMode(Servo::MODE_DURATION);
   zoomServo.setMode(Servo::MODE_DURATION);

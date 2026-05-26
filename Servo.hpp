@@ -26,6 +26,7 @@ class Servo {
     int adcPin;
     int pwmPin;
     int dirPin;
+    int dirPinPolarity;
     int mode;
     SlidingWindow filter;
     unsigned int targetAdcValue;
@@ -77,7 +78,7 @@ class Servo {
     void resetMinMax(void);
     const char *getName(void);
 
-    void setPins(int adc, int pwm, int dir);
+    void setPins(int adc, int pwm, int dir, int dirPolarity);
     void setDirection(bool = true);
     int setMode(int newMode);
     int getMode(void);

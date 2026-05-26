@@ -381,7 +381,7 @@ int Servo::run(void){
   }
 }
 
-void Servo::setPins(int adc, int pwm, int dir){
+void Servo::setPins(int adc, int pwm, int dir, int dirPolarity){
   adcPin = adc;
   // Prime the noise filter
   int i = filter.getFilterLength();
@@ -390,6 +390,7 @@ void Servo::setPins(int adc, int pwm, int dir){
   }
   pwmPin = pwm; analogWrite(pwmPin, 0); pinMode(pwmPin, OUTPUT);
   dirPin = dir; digitalWrite(dirPin, 0); pinMode(dirPin, OUTPUT);
+  dirPinPolarity = dirPolarity;
 }
 
 SetPoint *Servo::getFirstSetPoint(void){
