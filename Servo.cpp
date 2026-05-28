@@ -76,9 +76,10 @@ Servo::Servo(const ServoSettings *s, const char *name, unsigned int offset){
   loadSettingsFromEEPROM();
   szName = name;
   remainingTimeMs = 0;
-  adcPin = 0;
-  pwmPin = 0;
-  dirPin = 0;
+  adcPin = -1;
+  pwmPin = -1;
+  dirPin = -1;
+  dirPinPolarity = -1;
   adcMinValue = 4095;
   adcMaxValue = 0;
   pwmRatioMax = 0xFF; // 8-bit PWM
@@ -383,14 +384,16 @@ int Servo::run(void){
 
 void Servo::setPins(int adc, int pwm, int dir, int dirPolarity){
   adcPin = adc;
-  // Prime the noise filter
+  // Fill the noise filter
   int i = filter.getFilterLength();
   while(i--){
     adcValue = filter.input(analogRead(adcPin));
   }
-  pwmPin = pwm; analogWrite(pwmPin, 0); pinMode(pwmPin, OUTPUT);
-  dirPin = dir; digitalWrite(dirPin, 0); pinMode(dirPin, OUTPUT);
+  analogWriteResolution(8);
+  analogWriteFrequency(1000);
+  pwmPin = pwm; analogWrite(pwmPin, 16);
   dirPinPolarity = dirPolarity;
+  dirPin = dir; digitalWrite(dirPin, dirPinPolarity); pinMode(dirPin, OUTPUT);
 }
 
 SetPoint *Servo::getFirstSetPoint(void){

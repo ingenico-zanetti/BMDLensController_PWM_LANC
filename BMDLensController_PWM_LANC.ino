@@ -7,7 +7,7 @@
 #include "Lens.hpp"
 #include "GlobalConfiguration.hpp"
 
-#if 1
+#if 0
 /**
   * @brief  System Clock Configuration
   *         The system Clock is configured as follow :
@@ -101,11 +101,31 @@ uint32_t oldSeconds;
 uint32_t oldMillis;
 uint32_t oldMicros;
 uint32_t oldQuarter;
+uint32_t oldFrame;
 
 bool powerPresent;
 
 HardwareSerial commandSerial(CommandUartRx, CommandUartTx);
 HardwareSerial lancSerial(LancUartRx, LancUartTx);
+USART_TypeDef *lancUart = NULL;
+
+HardwareTimer *lancTimer = NULL;
+
+#define LANC_START_BIT_INTERVAL_US (1500) // in µs
+#define LANC_INTER_TELEGRAM_DELAY (3)     // in LANC_START_BIT_INTERVAL
+
+static unsigned char lancData[8] = {0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01};
+static int lancIndex = -(LANC_INTER_TELEGRAM_DELAY);
+
+static void lancInterrupt(void){
+  if((0 <= lancIndex) && (lancIndex < sizeof(lancData))){
+    lancUart->DR = lancData[lancIndex];
+  }
+  lancIndex++;
+  if(sizeof(lancData) == lancIndex){
+    lancIndex = -LANC_INTER_TELEGRAM_DELAY;
+  }
+}
 
 void setup() {
   Serial.begin(115200);
@@ -114,7 +134,8 @@ void setup() {
 #ifdef __HAS_LANC_GPIO__
   pinMode(LancGPIO, INPUT_PULLUP);
 #endif
-  lancSerial.begin(9600, SERIAL_8N2);
+  lancSerial.begin(9600, SERIAL_8N1);
+  lancUart = lancSerial.getHandle()->Instance;
 
 //  pinMode(LED_BUILTIN, INPUT_PULLUP);
   pinMode(LED_BUILTIN, OUTPUT);
@@ -129,6 +150,7 @@ void setup() {
   oldMicros = micros();
   oldQuarter = oldMillis / 250;
   oldSeconds = oldMillis / 1000;
+  oldFrame = oldMillis / 16; // around 60 fps
 
   analyzerUSB.addCallback('I', handleATI);
   analyzerUSB.addCallback('+', handlePlus);
@@ -140,19 +162,26 @@ void setup() {
   analyzerSerial.addCallback('&', handleAmpersAnd);
   analyzerSerial.addCallback('Z', handleATZ);
 
-  focusServo.setPins(FocusADC, FocusPWM, FocusDIR, 0);
-  zoomServo.setPins(ZoomADC, ZoomPWM, ZoomDIR, 0);
-  irisServo.setPins(IrisADC, IrisPWM, IrisDIR, 0);
+  focusServo.setPins(FocusADC, FocusPWM, FocusDIR);
+  zoomServo.setPins(ZoomADC, ZoomPWM, ZoomDIR);
+  irisServo.setPins(IrisADC, IrisPWM, IrisDIR);
 
   focusServo.setMode(Servo::MODE_DURATION);
   zoomServo.setMode(Servo::MODE_DURATION);
   irisServo.setMode(Servo::MODE_DURATION);
  
   powerPresent = (zoomServo.getAdcValue() > 1100);
+
+
+  lancTimer = new HardwareTimer(TIM2);
+  lancTimer->setOverflow(LANC_START_BIT_INTERVAL_US, MICROSEC_FORMAT);
+  lancTimer->attachInterrupt(lancInterrupt);
+  lancTimer->resume();
 }
 
 void loop() {
-
+  SysTick->CTRL = 0;
+#if 0
 #if 0
   focusServo.readAdc();
   zoomServo.readAdc();
@@ -161,6 +190,13 @@ void loop() {
   uint32_t newMillis = millis();
   if(newMillis != oldMillis){
     oldMillis = newMillis;
+    uint32_t newFrame = newMillis / 16;
+    if(newFrame != oldFrame){
+      oldFrame = newFrame;
+      if(-1 == lancIndex){
+        lancIndex = 0; // Request start of a new telegram, transfer will start at next interrupt (within 1.5ms)
+      }
+    }
 #if 0
     powerPresent = (zoomServo.getAdcValue() > 1100);
     if(powerPresent){
@@ -211,7 +247,6 @@ void loop() {
       ledStatus = (HIGH == ledStatus) ? LOW : HIGH;
       digitalWrite(LED_BUILTIN, ledStatus);
     }
-    lancSerial.write("\x55\xAA");
   }
   uint32_t newQuarter = newMillis / 250;
   if(newQuarter != oldQuarter){
@@ -221,4 +256,5 @@ void loop() {
       digitalWrite(LED_BUILTIN, ledStatus);
     }
   }
+#endif
 }

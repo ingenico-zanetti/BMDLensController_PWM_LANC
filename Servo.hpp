@@ -78,7 +78,7 @@ class Servo {
     void resetMinMax(void);
     const char *getName(void);
 
-    void setPins(int adc, int pwm, int dir, int dirPolarity);
+    void setPins(int adc, int pwm, int dir, int dirPolarity=0);
     void setDirection(bool = true);
     int setMode(int newMode);
     int getMode(void);
