@@ -107,22 +107,31 @@ bool powerPresent;
 
 HardwareSerial commandSerial(CommandUartRx, CommandUartTx);
 HardwareSerial lancSerial(LancUartRx, LancUartTx);
-USART_TypeDef *lancUart = NULL;
+// USART_TypeDef *lancUart = NULL;
 
 HardwareTimer *lancTimer = NULL;
 
 #define LANC_START_BIT_INTERVAL_US (1500) // in µs
 #define LANC_INTER_TELEGRAM_DELAY (3)     // in LANC_START_BIT_INTERVAL
 
-static unsigned char lancData[8] = {0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01};
+static unsigned char lancTxData[8] = {0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00};
+static unsigned char lancRxData[8];
+
 static int lancIndex = -(LANC_INTER_TELEGRAM_DELAY);
 
 static void lancInterrupt(void){
-  if((0 <= lancIndex) && (lancIndex < sizeof(lancData))){
-    lancUart->DR = lancData[lancIndex];
+  // Transmit next byte if we are inside a telegram
+  if((0 <= lancIndex) && (lancIndex < sizeof(lancTxData))){
+    lancSerial.write(lancTxData[lancIndex]);
+  }
+  // Receive the previous byte (we receive byte N when transmitting byte N+1)
+  if((0 < lancIndex) && (lancIndex <= sizeof(lancTxData))){
+    if(lancSerial.available()){
+      lancRxData[lancIndex - 1] = lancSerial.read();
+    }
   }
   lancIndex++;
-  if(sizeof(lancData) == lancIndex){
+  if(sizeof(lancTxData) == lancIndex){
     lancIndex = -LANC_INTER_TELEGRAM_DELAY;
   }
 }
@@ -135,7 +144,7 @@ void setup() {
   pinMode(LancGPIO, INPUT_PULLUP);
 #endif
   lancSerial.begin(9600, SERIAL_8N1);
-  lancUart = lancSerial.getHandle()->Instance;
+  // lancUart = lancSerial.getHandle()->Instance;
 
 //  pinMode(LED_BUILTIN, INPUT_PULLUP);
   pinMode(LED_BUILTIN, OUTPUT);
@@ -180,8 +189,7 @@ void setup() {
 }
 
 void loop() {
-  SysTick->CTRL = 0;
-#if 0
+#if 1
 #if 0
   focusServo.readAdc();
   zoomServo.readAdc();
