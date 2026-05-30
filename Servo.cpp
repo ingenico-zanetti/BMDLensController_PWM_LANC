@@ -390,7 +390,7 @@ void Servo::setPins(int adc, int pwm, int dir, int dirPolarity){
     adcValue = filter.input(analogRead(adcPin));
   }
   analogWriteResolution(8);
-  analogWriteFrequency(1000);
+  analogWriteFrequency(10000);
   pwmPin = pwm; analogWrite(pwmPin, 16);
   dirPinPolarity = dirPolarity;
   dirPin = dir; digitalWrite(dirPin, dirPinPolarity); pinMode(dirPin, OUTPUT);

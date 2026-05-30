@@ -181,7 +181,6 @@ void setup() {
  
   powerPresent = (zoomServo.getAdcValue() > 1100);
 
-
   lancTimer = new HardwareTimer(TIM2);
   lancTimer->setOverflow(LANC_START_BIT_INTERVAL_US, MICROSEC_FORMAT);
   lancTimer->attachInterrupt(lancInterrupt);
@@ -190,10 +189,11 @@ void setup() {
 
 void loop() {
 #if 1
-#if 0
+#if 1
   focusServo.readAdc();
   zoomServo.readAdc();
   irisServo.readAdc();
+  powerPresent = (zoomServo.getAdcValue() > 1100);
 #endif
   uint32_t newMillis = millis();
   if(newMillis != oldMillis){
@@ -206,7 +206,6 @@ void loop() {
       }
     }
 #if 0
-    powerPresent = (zoomServo.getAdcValue() > 1100);
     if(powerPresent){
       focusServo.run();
       zoomServo.run();
@@ -251,7 +250,7 @@ void loop() {
   uint32_t newSeconds = newMillis / 1000;
   if(newSeconds != oldSeconds){
     oldSeconds = newSeconds;
-    if(powerPresent){
+    if(!powerPresent){
       ledStatus = (HIGH == ledStatus) ? LOW : HIGH;
       digitalWrite(LED_BUILTIN, ledStatus);
     }
@@ -259,7 +258,7 @@ void loop() {
   uint32_t newQuarter = newMillis / 250;
   if(newQuarter != oldQuarter){
     oldQuarter = newQuarter;
-    if(!powerPresent){
+    if(powerPresent){
       ledStatus = (HIGH == ledStatus) ? LOW : HIGH;
       digitalWrite(LED_BUILTIN, ledStatus);
     }

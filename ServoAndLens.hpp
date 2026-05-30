@@ -3,7 +3,7 @@
 
 #include <assert.h>
 
-#define MAX_SET_POINTS (15) // DON'T CHANGE !!!
+#define MAX_SET_POINTS (14) // DON'T CHANGE !!!
 
 typedef struct {
     unsigned short int setting;  // 10 times the actual value: 6.4 is stored as 64, 999.9 is stored as 9999 and the max possible represented value is 6553.5 (meter, millimeter, diaphragm, ...)
@@ -17,6 +17,10 @@ typedef struct {
     unsigned char timeoutScale;
     unsigned char minSpeed;
     unsigned char rfu;
+    unsigned char pidP;
+    unsigned char pidI;
+    unsigned char pidD;
+    unsigned char rfu2;
   }parameters;
 } ServoSettings;
 
