@@ -92,9 +92,6 @@ void SystemClock_Config(void)
 
 #define LancUartRx (PA3) // UART2_RX / BluePill.PIN08
 #define LancUartTx (PA2) // UART2_TX / BluePill.PIN07
-#ifdef __HAS_LANC_GPIO__
-#define LancGPIO   (PA1) // GPIO / BluePill.PIN06
-#endif
 
 int ledStatus;
 uint32_t oldSeconds;
@@ -140,9 +137,6 @@ void setup() {
   Serial.begin(115200);
   commandSerial.begin(9600);
 
-#ifdef __HAS_LANC_GPIO__
-  pinMode(LancGPIO, INPUT_PULLUP);
-#endif
   lancSerial.begin(9600, SERIAL_8N1);
   // lancUart = lancSerial.getHandle()->Instance;
 
