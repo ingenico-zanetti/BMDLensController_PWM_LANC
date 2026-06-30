@@ -3,16 +3,6 @@
 #include "AtCommand.hpp"
 #include "GlobalConfiguration.hpp"
 
-#ifdef __PAN_AND_TILT_SUPPORT__
-extern HardwareSerial panAndTiltUnit;
-static bool isPanOrTiltServo(const char c){
-  if(('P' == c) || ('T' == c)){
-    return true;
-  }
-  return false;
-}
-#endif
-
 static int countComas(const char *szString, int length){
   int count = 0;
   const char *p = szString;

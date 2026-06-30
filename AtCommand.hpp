@@ -14,10 +14,6 @@ typedef bool (*FirstLevelCommand)(const char *szString, int length);
 class AtCommandAnalyzer {
   private:
   char data[MAX_COMMAND_SIZE];
-#ifdef __PAN_AND_TILT_SUPPORT__
-  char forwardBuffer[MAX_COMMAND_SIZE];
-  int forwardBufferOffset;
-#endif  
   char *rPtr;
   char *wPtr;
   uint32_t maxSize;
@@ -33,11 +29,6 @@ class AtCommandAnalyzer {
   void addChar(char car);
   void analyze(char *szString);
   void addCallback(char c, FirstLevelCommand command);
-#ifdef __PAN_AND_TILT_SUPPORT__
-  void forwardInit(void);
-  void forwardConcat(const char *s);
-  void forward(void);
-#endif  
 };
 
 extern AtCommandAnalyzer analyzerUSB;

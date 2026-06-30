@@ -82,7 +82,7 @@ Servo::Servo(const ServoSettings *s, const char *name, unsigned int offset){
   dirPinPolarity = -1;
   adcMinValue = 4095;
   adcMaxValue = 0;
-  pwmRatioMax = 0xFF; // 8-bit PWM
+  pwmRatioMax = 0x7F; // 8-bit PWM, with a twist
   filter = SlidingWindow(4);
   direction = DIRECTION_STOPPED;
   timeout = 0;
@@ -341,6 +341,7 @@ void Servo::stopMotor(const char *szReason){
 }
 
 int Servo::run(void){
+  // Serial.printf("%s::run()" "\n", getName());
   if(Servo::MODE_TIMED_MOVE == mode){
     if (false == timed_move_context.complete) {
       timed_move_context.decision += timed_move_context.adcIncrement;
@@ -390,8 +391,8 @@ void Servo::setPins(int adc, int pwm, int dir, int dirPolarity){
     adcValue = filter.input(analogRead(adcPin));
   }
   analogWriteResolution(8);
-  analogWriteFrequency(10000);
-  pwmPin = pwm; analogWrite(pwmPin, 16);
+  analogWriteFrequency(16000);
+  pwmPin = pwm; analogWrite(pwmPin, 0);
   dirPinPolarity = dirPolarity;
   dirPin = dir; digitalWrite(dirPin, dirPinPolarity); pinMode(dirPin, OUTPUT);
 }

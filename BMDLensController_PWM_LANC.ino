@@ -182,13 +182,10 @@ void setup() {
 }
 
 void loop() {
-#if 1
-#if 1
   focusServo.readAdc();
   zoomServo.readAdc();
   irisServo.readAdc();
   powerPresent = (zoomServo.getAdcValue() > 1100);
-#endif
   uint32_t newMillis = millis();
   if(newMillis != oldMillis){
     oldMillis = newMillis;
@@ -199,13 +196,9 @@ void loop() {
         lancIndex = 0; // Request start of a new telegram, transfer will start at next interrupt (within 1.5ms)
       }
     }
-#if 0
-    if(powerPresent){
-      focusServo.run();
-      zoomServo.run();
-      irisServo.run();
-    }
-#endif
+    focusServo.run();
+    zoomServo.run();
+    irisServo.run();
   }
   {
     // USB channel
@@ -218,6 +211,7 @@ void loop() {
       }
       int lus = Serial.readBytes(buffer, available);
       if(lus > 0){
+        // Serial.write(buffer, lus);
         for(int i = 0 ; i < lus ; i++){
           analyzerUSB.addChar(buffer[i]);
         }
@@ -257,5 +251,4 @@ void loop() {
       digitalWrite(LED_BUILTIN, ledStatus);
     }
   }
-#endif
 }

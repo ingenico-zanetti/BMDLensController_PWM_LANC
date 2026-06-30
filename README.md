@@ -79,7 +79,7 @@ OK
 
 The lens selected at build time will set the name and setpoints:
 - the name has no real effect
-- regarding the setpoints, your mileage may vary: they have been set for the lenses I could try, some of them have been fully disassembled and the values might be way off ; anyway they can be modified at runtime, and stored into Flash.
+- regarding the setpoints, your mileage may vary: they have been set for the lenses I could try, some of them had been fully disassembled and the values might be way off ; anyway they can be modified at runtime, and stored into Flash.
 
 On startup, the servo will be loaded with the setpoints from the FW ; if some settings are present in the persistent storage they will be loaded and overwrite the values from the FW.
 If you change the value in the FW after having copied them to Flash and want them to be applied, you need to force reloading the value from FW after they have been loaded from Flash.
@@ -309,7 +309,8 @@ For focus, the provided setpoints in the FW use the following conventions:
 - setpoint are in meters (they often are written in both feet and meters on the lens)
 - 999.0 is infinity (spot-on in the middle of the symbol)
 - 999.9 is beyond infinity (the maximum reachable optical/mechanical position)
-This has the poor side effect of rendering interpolated setpoints useless beyond the last actual setpoint (10m on the lenses I had access to) ; focus is meant to be driven in relative moves anyway (timed or ADC) or absolute values that have been already stored for a later use.
+This has the poor side effect of rendering interpolated setpoints useless beyond the last actual setpoint (10m on the lenses I had access to) ;
+focus is meant to be driven in relative moves anyway (timed or ADC) or absolute values that have been already stored for a later use.
 Once your are satisfied with your new setting(s), use AT&W to have them stored in Flash.
 
 Each servo has 3 settings:
@@ -317,8 +318,11 @@ Each servo has 3 settings:
 - timeoutScale
 - minSpeed
 
-We have already seen minSpeed, but never acutally explained how it works.
-"Speed" is obtained through driving the motor with a PWM signal ; the PWM goes from 1 over 16 (slowest possible speed) to 16 over 16 (full drive, maximum speed). Each servo has its own current-limiting power supply, a different motor, some gearbox / reduction and has to move more or less easy/smooth mechanical parts inside the lens. This has the side effect that with very low PWM setting, the drive mechanism can get stucked or not be smooth. To prevent this from happening, you can use minSpeed to forbid using too small a value ; using 16 will prevent any move to occur at less than the full speed.
+We have already seen minSpeed, but never actually explained how it works.
+"Speed" is obtained through driving the motor with a PWM signal ; the PWM goes from 1 over 16 (slowest possible speed) to 16 over 16 (full drive, maximum speed).
+Each servo has its own current-limiting power supply, a different motor, some gearbox / reduction and has to move more or less easy/smooth mechanical parts inside the lens.
+This has the side effect that with very low PWM setting, the drive mechanism can get stucked or not be smooth.
+To prevent this from happening, you can use minSpeed to forbid using too small a value ; using 16 will prevent any move to occur at less than the full speed.
 The setting can be altered using the AT+x=M,PWM syntax:
 
 ```text
