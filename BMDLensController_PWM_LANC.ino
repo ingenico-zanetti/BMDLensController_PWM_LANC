@@ -117,18 +117,19 @@ static unsigned char lancRxData[8];
 static int lancIndex = -(LANC_INTER_TELEGRAM_DELAY);
 
 static void lancInterrupt(void){
+  // Receive the previous byte (we receive byte N when transmitting byte N+1)
+  if((0 < lancIndex) && (lancIndex <= sizeof(lancTxData))){
+    if(lancSerial.available()){
+      int rxIndex = lancIndex - 1; 
+      lancRxData[rxIndex] = lancSerial.read();
+    }
+  }
   // Transmit next byte if we are inside a telegram
   if((0 <= lancIndex) && (lancIndex < sizeof(lancTxData))){
     lancSerial.write(lancTxData[lancIndex]);
   }
-  // Receive the previous byte (we receive byte N when transmitting byte N+1)
-  if((0 < lancIndex) && (lancIndex <= sizeof(lancTxData))){
-    if(lancSerial.available()){
-      lancRxData[lancIndex - 1] = lancSerial.read();
-    }
-  }
   lancIndex++;
-  if(sizeof(lancTxData) == lancIndex){
+  if(lancIndex > (int)sizeof(lancTxData)){
     lancIndex = -LANC_INTER_TELEGRAM_DELAY;
   }
 }
@@ -189,11 +190,16 @@ void loop() {
   uint32_t newMillis = millis();
   if(newMillis != oldMillis){
     oldMillis = newMillis;
-    uint32_t newFrame = newMillis / 16;
-    if(newFrame != oldFrame){
-      oldFrame = newFrame;
-      if(-1 == lancIndex){
-        lancIndex = 0; // Request start of a new telegram, transfer will start at next interrupt (within 1.5ms)
+    {
+      // Serial.printf("lancIndex=%d" "\n", lancIndex);
+      if(5 == lancIndex){
+        // We have received the 4 bytes from the remote, look at what we have
+        // We have 500ms to put a correct answer in the last 4 bytes before they start being transmitted
+          Serial.printf("LANC[]={");
+          for(int i = 0 ; i < 4 ; i++){
+            Serial.printf("%02X ", lancRxData[i]);
+          }
+          Serial.printf("}" "\n");
       }
     }
     focusServo.run();
@@ -252,3 +258,4 @@ void loop() {
     }
   }
 }
+
