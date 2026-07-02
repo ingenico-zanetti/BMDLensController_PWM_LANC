@@ -11,7 +11,7 @@ enum Direction_e {
   DIRECTION_FORWARD  = 1
 } ;
 
-#define PWM_RATIO_MAX (0xFF)
+#define PWM_RATIO_MAX (0xC0)
 
 class Servo {
   private:
@@ -38,8 +38,9 @@ class Servo {
     unsigned int timeout;
 
     unsigned int updatePWMRatio(void);
-    int getSetPointIndex(unsigned short setting);
-    int getSetPointPreviousIndex(unsigned short setting);
+    int getSetPointIndexFromSetting(unsigned short setting);
+    int getSetPointPreviousIndexFromSetting(unsigned short setting);
+    int getSetPointPreviousIndexFromAdc(unsigned short adc);
 
     unsigned int eepromOffset;
     const ServoSettings *servoSettingsFromFW;
@@ -69,6 +70,7 @@ class Servo {
 
     bool setSetPoint(unsigned short setting, unsigned short adcValue);
     bool getAdcValueFromSetting(SetPoint *setPoint);
+    int getClosestSettingIndexFromAdcValue(unsigned short adcValue);
 
     SetPoint *getSetPoints(int *actualCount);
     unsigned short getAdcValue(void);

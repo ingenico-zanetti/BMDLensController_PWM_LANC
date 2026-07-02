@@ -83,9 +83,25 @@ Servo::Servo(const ServoSettings *s, const char *name, unsigned int offset){
   adcMinValue = 4095;
   adcMaxValue = 0;
   pwmRatioMax = 0x7F; // 8-bit PWM, with a twist
-  filter = SlidingWindow(4);
+  filter = SlidingWindow(name, 4);
   direction = DIRECTION_STOPPED;
   timeout = 0;
+}
+
+void Servo::setPins(int adc, int pwm, int dir, int dirPolarity){
+  adcPin = adc;
+  #if 0
+  // Fill the noise filter
+  int i = filter.getFilterLength();
+  while(i--){
+    adcValue = filter.input(analogRead(adcPin));
+  }
+  #endif
+  analogWriteResolution(8);
+  analogWriteFrequency(16000);
+  pwmPin = pwm; analogWrite(pwmPin, 0);
+  dirPinPolarity = dirPolarity;
+  dirPin = dir; digitalWrite(dirPin, dirPinPolarity); pinMode(dirPin, OUTPUT);
 }
 
 void Servo::print(const char *szUnit){
@@ -100,6 +116,7 @@ void Servo::print(const char *szUnit){
         );
   }
   Serial.printf("parameters={.pwmScale=%3u, .timeoutScale=%3u, .minSpeed=%3u}" "\n", pwmScale, timeoutScale, pwmRatioMin);
+  filter.print();
 }
 
 SetPoint *Servo::getSetPoints(int *actualCount){
@@ -117,7 +134,7 @@ char *Servo::setPointSettingToString(char *szString, SetPoint *setPoint){
   return(szString);
 }
 
-int Servo::getSetPointIndex(unsigned short setting){
+int Servo::getSetPointIndexFromSetting(unsigned short setting){
   int index = setPointCount;
   while(index--){
     if(setPoints[index].setting == setting){
@@ -127,7 +144,7 @@ int Servo::getSetPointIndex(unsigned short setting){
   return(-1);
 }
 
-int Servo::getSetPointPreviousIndex(unsigned short setting){
+int Servo::getSetPointPreviousIndexFromSetting(unsigned short setting){
   int index = setPointCount;
   while(index--){
     if(setPoints[index].setting < setting){
@@ -137,9 +154,34 @@ int Servo::getSetPointPreviousIndex(unsigned short setting){
   return(-1);
 }
 
+int Servo::getSetPointPreviousIndexFromAdc(unsigned short adcValue){
+  // Serial.printf("%s(%d)" "\n", __func__, adcValue);
+  unsigned short min = getFirstSetPoint()->adcValue;
+  unsigned short max = getLastSetPoint()->adcValue;
+  if(min < max){
+    // Ascending ADC values
+    int index = setPointCount;
+    while(index--){
+      // Serial.printf("ASC:setPoints[%d].adcValue=%d" "\n", index, setPoints[index].adcValue);
+      if(setPoints[index].adcValue < adcValue){
+        return(index);
+      }
+    }
+  }else{
+    // Descending ADC values
+    int index = setPointCount;
+    while(index--){
+      // Serial.printf("DES:setPoints[%d].adcValue=%d" "\n", index, setPoints[index].adcValue);
+      if(setPoints[index].adcValue > adcValue){
+        return(index);
+      }
+    }
+  }
+  return(-1);
+}
 bool Servo::setSetPoint(unsigned short setting, unsigned short adcValue){
   bool raiseError = true;
-  int index = getSetPointIndex(setting);
+  int index = getSetPointIndexFromSetting(setting);
   if(index != -1){
     setPoints[index].adcValue = adcValue;
     raiseError = false;
@@ -148,7 +190,8 @@ bool Servo::setSetPoint(unsigned short setting, unsigned short adcValue){
 }
 
 unsigned short Servo::readAdc(void){
-  adcValue = filter.input(analogRead(adcPin));
+  unsigned short newAdcValue = analogRead(adcPin);
+  adcValue = filter.input(newAdcValue);
   if(adcValue < adcMinValue){
     adcMinValue = adcValue;
   }
@@ -199,12 +242,15 @@ int Servo::getMode(void){
 }
 
 void Servo::setDirection(bool dir){
-  // Serial.printf("%s(%d)" "\n", __func__, dir);
+  Serial.printf("%s(%d)=>", __func__, dir);
   if(dir){
-      direction = DIRECTION_FORWARD;
+    Serial.printf("DIRECTION_FORWARD");
+    direction = DIRECTION_FORWARD;
   } else {
-      direction = DIRECTION_BACKWARD;
+    Serial.printf("DIRECTION_BACKWARD");
+    direction = DIRECTION_BACKWARD;
   }
+  Serial.printf("\n");
 }
 
 bool Servo::setTimeMs(int t){
@@ -212,6 +258,13 @@ bool Servo::setTimeMs(int t){
   if(t > 0){
     mode = MODE_DURATION;
     remainingTimeMs = t + 1;
+
+    int dir = dirPinPolarity;
+    if(DIRECTION_BACKWARD == direction){
+      dir ^= 1;
+    }
+    digitalWrite(dirPin, dir);
+
     analogWrite(pwmPin, pwmRatioMax);
     timeout = 0;
     // Serial.printf("%s(%d): trigger %sward motion for %d loop with pwmRatio %d" "\n", __func__, t, forward ? "for" : "back", remainingTimeMs, pwmRatioMax);
@@ -383,20 +436,6 @@ int Servo::run(void){
   }
 }
 
-void Servo::setPins(int adc, int pwm, int dir, int dirPolarity){
-  adcPin = adc;
-  // Fill the noise filter
-  int i = filter.getFilterLength();
-  while(i--){
-    adcValue = filter.input(analogRead(adcPin));
-  }
-  analogWriteResolution(8);
-  analogWriteFrequency(16000);
-  pwmPin = pwm; analogWrite(pwmPin, 0);
-  dirPinPolarity = dirPolarity;
-  dirPin = dir; digitalWrite(dirPin, dirPinPolarity); pinMode(dirPin, OUTPUT);
-}
-
 SetPoint *Servo::getFirstSetPoint(void){
   return(setPoints + 0);
 }
@@ -410,6 +449,7 @@ SetPoint *Servo::getLastSetPoint(){
 }
 
 unsigned int Servo::setPwmRatioMax(unsigned int max){
+  Serial.printf("%s::%s(%d)=>", szName, __func__, max);
   unsigned int oldPwmRatio = pwmRatio;
   if(max > PWM_RATIO_MAX){
     pwmRatioMax = PWM_RATIO_MAX;
@@ -425,6 +465,7 @@ unsigned int Servo::setPwmRatioMax(unsigned int max){
   if(oldPwmRatio != pwmRatio){
     analogWrite(pwmPin, pwmRatio);
   }
+  Serial.printf("=>%d" "\n", pwmRatioMax);
   return pwmRatioMax;
 }
 
@@ -494,10 +535,10 @@ bool Servo::stringToSetPointSetting(const char *start, int sLen, SetPoint *setPo
 bool Servo::getAdcValueFromSetting(SetPoint *setPoint){
   bool raiseError = false;
   unsigned short setting = setPoint->setting;
-  int index = getSetPointIndex(setting);
+  int index = getSetPointIndexFromSetting(setting);
   if(-1 == index){
     if(isSettingValid(setting)){
-      index = getSetPointPreviousIndex(setting);
+      index = getSetPointPreviousIndexFromSetting(setting);
       int beforeSetting  = (int)setPoints[index].setting;
       int beforeAdcValue = (int)setPoints[index].adcValue;
       int afterSetting   = (int)setPoints[index + 1].setting;
@@ -511,6 +552,31 @@ bool Servo::getAdcValueFromSetting(SetPoint *setPoint){
     setPoint->adcValue = setPoints[index].adcValue;
   }
   return raiseError;
+}
+
+// find closest SetPoint index for a given ADC value
+int Servo::getClosestSettingIndexFromAdcValue(unsigned short adc){
+  int index  = getSetPointPreviousIndexFromAdc(adc);
+  if(-1 == index){
+    return(0);
+  }else{
+    int beforeAdcValue = (int)setPoints[index].adcValue;
+    int afterAdcValue  = (int)setPoints[index + 1].adcValue;
+    int deltaBefore = adc - beforeAdcValue;
+    if(deltaBefore < 0){
+      deltaBefore = -deltaBefore;
+    }
+    int deltaAfter = afterAdcValue - adc;
+    if(deltaAfter < 0){
+      deltaAfter = -deltaAfter;
+    }
+    // Serial.printf("%s:index=%d, deltaBefore %d, deltaAfter %d" "\n", __func__, index, deltaBefore, deltaAfter);
+    if(deltaBefore < deltaAfter){
+      return(index);
+    }else{
+      return(index + 1);
+    }
+  }
 }
 
 bool Servo::setPwmScale(unsigned char scale){

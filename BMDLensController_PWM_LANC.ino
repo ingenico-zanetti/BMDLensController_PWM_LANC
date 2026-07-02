@@ -6,6 +6,7 @@
 #include "Servo.hpp"
 #include "Lens.hpp"
 #include "GlobalConfiguration.hpp"
+#include "Version.hpp"
 
 #if 0
 /**
@@ -114,14 +115,14 @@ HardwareTimer *lancTimer = NULL;
 static unsigned char lancTxData[8] = {0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00};
 static unsigned char lancRxData[8];
 
-static int lancIndex = -(LANC_INTER_TELEGRAM_DELAY);
+static int lancIndex = 0;
 
 static void lancInterrupt(void){
   // Receive the previous byte (we receive byte N when transmitting byte N+1)
   if((0 < lancIndex) && (lancIndex <= sizeof(lancTxData))){
     if(lancSerial.available()){
       int rxIndex = lancIndex - 1; 
-      lancRxData[rxIndex] = lancSerial.read();
+      lancRxData[rxIndex] = lancSerial.read() ^ 0xFF; // Inverted logic
     }
   }
   // Transmit next byte if we are inside a telegram
@@ -141,8 +142,8 @@ void setup() {
   lancSerial.begin(9600, SERIAL_8N1);
   // lancUart = lancSerial.getHandle()->Instance;
 
-//  pinMode(LED_BUILTIN, INPUT_PULLUP);
-  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(LED_BUILTIN, INPUT_PULLUP);
+//  pinMode(LED_BUILTIN, OUTPUT);
 
   ledStatus = HIGH;
   digitalWrite(LED_BUILTIN, ledStatus);
@@ -180,31 +181,182 @@ void setup() {
   lancTimer->setOverflow(LANC_START_BIT_INTERVAL_US, MICROSEC_FORMAT);
   lancTimer->attachInterrupt(lancInterrupt);
   lancTimer->resume();
+
+  while(!Serial){
+    delay(10);
+  }
+  Serial.printf("%s" "\n", getFWVersion());
+}
+
+static int previousLancIndex = -1;
+static bool record = false, review = false;
+
+static bool focusChange = false;
+static int focusSteps = 0;
+
+static bool irisChange = false;
+static int irisSteps;
+
+static int zoomSpeedFromLanc(int lancSpeed){
+  return(((lancSpeed / 2) + 1) * 32);
 }
 
 void loop() {
   focusServo.readAdc();
   zoomServo.readAdc();
   irisServo.readAdc();
-  powerPresent = (zoomServo.getAdcValue() > 1100);
   uint32_t newMillis = millis();
   if(newMillis != oldMillis){
+    #ifdef __RUN_SERVO__
+    focusServo.run();
+    zoomServo.run();
+    irisServo.run();
+    #endif
     oldMillis = newMillis;
-    {
+#ifdef __LANC__
+    int currentLancIndex = lancIndex;
+    if(previousLancIndex != currentLancIndex){
+      currentLancIndex = previousLancIndex;
       // Serial.printf("lancIndex=%d" "\n", lancIndex);
       if(5 == lancIndex){
         // We have received the 4 bytes from the remote, look at what we have
         // We have 500ms to put a correct answer in the last 4 bytes before they start being transmitted
-          Serial.printf("LANC[]={");
-          for(int i = 0 ; i < 4 ; i++){
-            Serial.printf("%02X ", lancRxData[i]);
+        int zoomSpeed = 0;
+        unsigned char subCommand = lancRxData[0];
+        unsigned char command = lancRxData[1];
+        switch(subCommand){
+          default:
+          break;
+          case 0x00:
+            if(record){
+              record = false;
+              Serial.printf("+RECORD" "\n");
+            }
+            if(review){
+              review = false;
+              Serial.printf("+REVIEW" "\n");
+            }
+            if(focusChange){
+              focusChange = false;
+              Serial.printf("+FOCUS:%d" "\n", focusSteps);
+              if(0 != focusSteps){
+                focusServo.setDirection(focusSteps > 0);
+                if(focusSteps < 0){
+                  focusSteps = -focusSteps;
+                }
+                focusServo.setTimeMs(10 * focusSteps);
+              }
+            }
+            if(irisChange){
+              irisChange = false;
+              if(0 != irisSteps){
+                int index = irisServo.getClosestSettingIndexFromAdcValue(irisServo.getAdcValue());
+                // Serial.printf("+IRIS:%d(index=%d)" "\n", irisSteps, index);
+                int setPointCount = 0;
+                SetPoint *setPoints = irisServo.getSetPoints(&setPointCount);
+                index += irisSteps;
+                if(index < 0){
+                  index = 0;
+                }else if(index >= setPointCount){
+                  index = (setPointCount - 1);
+                }
+                Serial.printf("+IRIS:%d([index]=%d)" "\n", irisSteps, index);
+                irisServo.setTargetAdcValue(setPoints[index].adcValue);
+              }else{
+                Serial.printf("+IRIS:Auto" "\n");
+              }
+            }
+          break;
+          case 0x18:
+          switch(command){
+            default:
+              Serial.printf("0x18 0x%02X" "\n", command);
+            break;
+            case 0x33:
+              record = true;
+              break;
+            case 0x69:
+              review = true;
+              break;
           }
-          Serial.printf("}" "\n");
-      }
+          break;
+          case 0x28:
+            switch(command){
+            default:
+              Serial.printf("0x28 0x%02X" "\n", command);
+            break;
+            case 0x00:
+            case 0x02:
+            case 0x04:
+            case 0x06:
+            case 0x08:
+            case 0x0A:
+            case 0x0C:
+            case 0x0E:
+              zoomSpeed = zoomSpeedFromLanc(command);
+            break;
+            case 0x10:
+            case 0x12:
+            case 0x14:
+            case 0x16:
+            case 0x18:
+            case 0x1A:
+            case 0x1C:
+            case 0x1E:
+              zoomSpeed = -zoomSpeedFromLanc(command - 0x10);
+            break;
+            case 0xAD:
+              irisChange = true;
+              irisSteps = 0;
+              break;
+            case 0x53:
+              irisChange = true;
+              irisSteps = +1;
+              break;
+            case 0x55:
+              irisChange = true;
+              irisSteps = -1;
+              break;
+            case 0xC5:
+              irisChange = true;
+              irisSteps = +4;
+              break;
+            case 0xC7:
+              irisChange = true;
+              irisSteps = -4;
+              break;
+            case 0x41:
+              focusChange = true;
+              focusSteps = 0;
+              break;
+            case 0xE1:
+            case 0xE3:
+            case 0xE5:
+              focusChange = true;
+              focusSteps = +(command - 0xE0);
+              break;
+            case 0xF1:
+            case 0xF3:
+            case 0xF5:
+              focusChange = true;
+              focusSteps = -(command - 0xF0);
+              break;
+          }
+          break;
+        }
+        if(0 != zoomSpeed){
+          if(0 < zoomSpeed){
+            zoomServo.setDirection(true);
+          }else{
+            zoomServo.setDirection(false);
+            zoomSpeed = -zoomSpeed;
+          }
+          zoomServo.setPwmRatioMax(zoomSpeed);
+          zoomServo.setTimeMs(20); // at least up-to next LANC cycle
+        }
+      } // lancIndex == 5
     }
-    focusServo.run();
-    zoomServo.run();
-    irisServo.run();
+#endif // __LANC__
   }
   {
     // USB channel
@@ -244,18 +396,17 @@ void loop() {
   uint32_t newSeconds = newMillis / 1000;
   if(newSeconds != oldSeconds){
     oldSeconds = newSeconds;
-    if(!powerPresent){
-      ledStatus = (HIGH == ledStatus) ? LOW : HIGH;
-      digitalWrite(LED_BUILTIN, ledStatus);
-    }
+#if 1
+    Serial.printf("ZoomADC=%5d" "\n", zoomServo.getAdcValue());
+    Serial.printf("IrisADC= %5d" "\n", irisServo.getAdcValue());
+    Serial.printf("FocusADC=%5d" "\n", focusServo.getAdcValue());
+#endif
   }
   uint32_t newQuarter = newMillis / 250;
   if(newQuarter != oldQuarter){
     oldQuarter = newQuarter;
-    if(powerPresent){
-      ledStatus = (HIGH == ledStatus) ? LOW : HIGH;
-      digitalWrite(LED_BUILTIN, ledStatus);
-    }
+    ledStatus = (HIGH == ledStatus) ? LOW : HIGH;
+    digitalWrite(LED_BUILTIN, ledStatus);
   }
 }
 
