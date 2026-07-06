@@ -182,10 +182,6 @@ void setup() {
   lancTimer->attachInterrupt(lancInterrupt);
   lancTimer->resume();
 
-  while(!Serial){
-    delay(10);
-  }
-  Serial.printf("%s" "\n", getFWVersion());
 }
 
 static int previousLancIndex = -1;
@@ -207,13 +203,13 @@ void loop() {
   irisServo.readAdc();
   uint32_t newMillis = millis();
   if(newMillis != oldMillis){
-    #ifdef __RUN_SERVO__
+#ifndef __DONT_RUN_SERVO__
     focusServo.run();
     zoomServo.run();
     irisServo.run();
-    #endif
+#endif
     oldMillis = newMillis;
-#ifdef __LANC__
+#ifndef __NO_LANC__
     int currentLancIndex = lancIndex;
     if(previousLancIndex != currentLancIndex){
       currentLancIndex = previousLancIndex;
@@ -250,6 +246,8 @@ void loop() {
             if(irisChange){
               irisChange = false;
               if(0 != irisSteps){
+                Serial.printf("+IRIS:%d([index]=%d)" "\n", irisSteps, index);
+#if 0
                 int index = irisServo.getClosestSettingIndexFromAdcValue(irisServo.getAdcValue());
                 // Serial.printf("+IRIS:%d(index=%d)" "\n", irisSteps, index);
                 int setPointCount = 0;
@@ -260,8 +258,14 @@ void loop() {
                 }else if(index >= setPointCount){
                   index = (setPointCount - 1);
                 }
-                Serial.printf("+IRIS:%d([index]=%d)" "\n", irisSteps, index);
                 irisServo.setTargetAdcValue(setPoints[index].adcValue);
+#else
+                irisServo.setDirection(irisSteps > 0);
+                if(irisSteps < 0){
+                  irisSteps = -irisSteps;
+                }
+                irisServo.setTimeMs(10 * irisSteps);
+#endif
               }else{
                 Serial.printf("+IRIS:Auto" "\n");
               }
@@ -396,7 +400,7 @@ void loop() {
   uint32_t newSeconds = newMillis / 1000;
   if(newSeconds != oldSeconds){
     oldSeconds = newSeconds;
-#if 1
+#if 0
     Serial.printf("ZoomADC=%5d" "\n", zoomServo.getAdcValue());
     Serial.printf("IrisADC= %5d" "\n", irisServo.getAdcValue());
     Serial.printf("FocusADC=%5d" "\n", focusServo.getAdcValue());
