@@ -187,6 +187,7 @@ void setup() {
 static int previousLancIndex = -1;
 static bool record = false, review = false;
 
+
 static bool focusChange = false;
 static int focusSteps = 0;
 
@@ -194,7 +195,11 @@ static bool irisChange = false;
 static int irisSteps;
 
 static int zoomSpeedFromLanc(int lancSpeed){
-  return(((lancSpeed / 2) + 1) * 32);
+  if(lancSpeed < 0x10){
+    return(+(48 + lancSpeed * 10)); // tighter angle
+  }else{
+    return(-(32 + (lancSpeed - 0x10) * 10)); // wider angle
+  }
 }
 
 void loop() {
@@ -203,17 +208,14 @@ void loop() {
   irisServo.readAdc();
   uint32_t newMillis = millis();
   if(newMillis != oldMillis){
-#ifndef __DONT_RUN_SERVO__
     focusServo.run();
     zoomServo.run();
     irisServo.run();
-#endif
     oldMillis = newMillis;
 #ifndef __NO_LANC__
     int currentLancIndex = lancIndex;
     if(previousLancIndex != currentLancIndex){
       currentLancIndex = previousLancIndex;
-      // Serial.printf("lancIndex=%d" "\n", lancIndex);
       if(5 == lancIndex){
         // We have received the 4 bytes from the remote, look at what we have
         // We have 500ms to put a correct answer in the last 4 bytes before they start being transmitted
@@ -240,7 +242,7 @@ void loop() {
                 if(focusSteps < 0){
                   focusSteps = -focusSteps;
                 }
-                focusServo.setTimeMs(10 * focusSteps);
+                focusServo.setTimeMs(1 * focusSteps);
               }
             }
             if(irisChange){
@@ -297,8 +299,6 @@ void loop() {
             case 0x0A:
             case 0x0C:
             case 0x0E:
-              zoomSpeed = zoomSpeedFromLanc(command);
-            break;
             case 0x10:
             case 0x12:
             case 0x14:
@@ -307,7 +307,7 @@ void loop() {
             case 0x1A:
             case 0x1C:
             case 0x1E:
-              zoomSpeed = -zoomSpeedFromLanc(command - 0x10);
+              zoomSpeed = zoomSpeedFromLanc(command);
             break;
             case 0xAD:
               irisChange = true;
