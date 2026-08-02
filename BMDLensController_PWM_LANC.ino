@@ -196,7 +196,14 @@ static int focusSteps = 0;
 static bool irisChange = false;
 static int irisSteps;
 
-static int zoomSpeedFromLanc(int lancSpeed){
+static int zoomSpeedFromLanc(int lancSpeed, Stream *usb, Stream *uart){
+  if(lancSpeed < 0x10){
+    usb->printf("+LZOOM:+%d" "\n", lancSpeed);
+    uart->printf("+LZOOM:+%d" "\n", lancSpeed);
+  }else{
+    usb->printf("+LZOOM:-%d" "\n", lancSpeed - 0x10);
+    uart->printf("+LZOOM:-%d" "\n", lancSpeed - 0x10);
+  }
   if(lancSpeed < 0x10){
     return(+(48 + lancSpeed * 10)); // tighter angle
   }else{
@@ -232,31 +239,34 @@ void loop() {
           case 0x00:
             if(record){
               record = false;
-              Serial.printf("+RECORD" "\n");
-              commandSerial.printf("+RECORD" "\n");
+              Serial.printf("+LRECORD" "\n");
+              commandSerial.printf("+LRECORD" "\n");
             }
             if(review){
               review = false;
-              Serial.printf("+REVIEW" "\n");
-              commandSerial.printf("+REVIEW" "\n");
+              Serial.printf("+LREVIEW" "\n");
+              commandSerial.printf("+LREVIEW" "\n");
             }
             if(focusChange){
               focusChange = false;
-              Serial.printf("+FOCUS:%d" "\n", focusSteps);
-              commandSerial.printf("+FOCUS:%d" "\n", focusSteps);
               if(0 != focusSteps){
+                Serial.printf("+LFOCUS:%d" "\n", focusSteps);
+                commandSerial.printf("+LFOCUS:%d" "\n", focusSteps);
                 focusServo.setDirection(focusSteps > 0);
                 if(focusSteps < 0){
                   focusSteps = -focusSteps;
                 }
                 focusServo.setTimeMs(1 * focusSteps);
+              }else{
+                Serial.printf("+LFOCUS:AUTO" "\n");
+                commandSerial.printf("+LFOCUS:AUTO" "\n");
               }
             }
             if(irisChange){
               irisChange = false;
               if(0 != irisSteps){
-                Serial.printf("+IRIS:%d([index]=%d)" "\n", irisSteps, index);
-                commandSerial.printf("+IRIS:%d([index]=%d)" "\n", irisSteps, index);
+                Serial.printf("+LIRIS:%d" "\n", irisSteps);
+                commandSerial.printf("+LIRIS:%d" "\n", irisSteps);
 #if 0
                 int index = irisServo.getClosestSettingIndexFromAdcValue(irisServo.getAdcValue());
                 // Serial.printf("+IRIS:%d(index=%d)" "\n", irisSteps, index);
@@ -277,16 +287,16 @@ void loop() {
                 irisServo.setTimeMs(10 * irisSteps);
 #endif
               }else{
-                Serial.printf("+IRIS:Auto" "\n");
-                commandSerial.printf("+IRIS:Auto" "\n");
+                Serial.printf("+LIRIS:Auto" "\n");
+                commandSerial.printf("+LIRIS:Auto" "\n");
               }
             }
           break;
           case 0x18:
           switch(command){
             default:
-              Serial.printf("0x18 0x%02X" "\n", command);
-              commandSerial.printf("0x18 0x%02X" "\n", command);
+              Serial.printf("+L0x18 0x%02X" "\n", command);
+              commandSerial.printf("+L0x18 0x%02X" "\n", command);
             break;
             case 0x33:
               record = true;
@@ -299,8 +309,8 @@ void loop() {
           case 0x28:
             switch(command){
             default:
-              Serial.printf("0x28 0x%02X" "\n", command);
-              commandSerial.printf("0x28 0x%02X" "\n", command);
+              Serial.printf("+L0x28 0x%02X" "\n", command);
+              commandSerial.printf("+L0x28 0x%02X" "\n", command);
             break;
             case 0x00:
             case 0x02:
@@ -318,7 +328,7 @@ void loop() {
             case 0x1A:
             case 0x1C:
             case 0x1E:
-              zoomSpeed = zoomSpeedFromLanc(command);
+              zoomSpeed = zoomSpeedFromLanc(command, &Serial, &commandSerial);
             break;
             case 0xAD:
               irisChange = true;
@@ -334,11 +344,11 @@ void loop() {
               break;
             case 0xC5:
               irisChange = true;
-              irisSteps = +4;
+              irisSteps = +2;
               break;
             case 0xC7:
               irisChange = true;
-              irisSteps = -4;
+              irisSteps = -2;
               break;
             case 0x41:
               focusChange = true;
@@ -411,11 +421,6 @@ void loop() {
   uint32_t newSeconds = newMillis / 1000;
   if(newSeconds != oldSeconds){
     oldSeconds = newSeconds;
-#if 0
-    Serial.printf("ZoomADC=%5d" "\n", zoomServo.getAdcValue());
-    Serial.printf("IrisADC= %5d" "\n", irisServo.getAdcValue());
-    Serial.printf("FocusADC=%5d" "\n", focusServo.getAdcValue());
-#endif
   }
   uint32_t newQuarter = newMillis / 250;
   if(newQuarter != oldQuarter){
