@@ -287,8 +287,8 @@ void loop() {
                 irisServo.setTimeMs(10 * irisSteps);
 #endif
               }else{
-                Serial.printf("+LIRIS:Auto" "\n");
-                commandSerial.printf("+LIRIS:Auto" "\n");
+                Serial.printf("+LIRIS:AUTO" "\n");
+                commandSerial.printf("+LIRIS:AUTO" "\n");
               }
             }
           break;
