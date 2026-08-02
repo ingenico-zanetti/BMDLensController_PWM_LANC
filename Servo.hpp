@@ -38,6 +38,7 @@ class Servo {
     unsigned int timeout;
 
     unsigned int updatePWMRatio(void);
+
     int getSetPointIndexFromSetting(unsigned short setting);
     int getSetPointPreviousIndexFromSetting(unsigned short setting);
     int getSetPointPreviousIndexFromAdc(unsigned short adc);

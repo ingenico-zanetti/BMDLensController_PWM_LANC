@@ -82,7 +82,7 @@ Servo::Servo(const ServoSettings *s, const char *name, unsigned int offset){
   dirPinPolarity = -1;
   adcMinValue = 4095;
   adcMaxValue = 0;
-  pwmRatioMax = 0x7F; // 8-bit PWM, with a twist
+  pwmRatioMax = 0xC0; // 8-bit PWM, but beyond 0xC0, the behaviour is not predictable
   filter = SlidingWindow(name, 4);
   direction = DIRECTION_STOPPED;
   timeout = 0;
@@ -242,15 +242,15 @@ int Servo::getMode(void){
 }
 
 void Servo::setDirection(bool dir){
-  Serial.printf("%s(%d)=>", __func__, dir);
+  // Serial.printf("%s(%d)=>", __func__, dir);
   if(dir){
-    Serial.printf("DIRECTION_FORWARD");
+    // Serial.printf("DIRECTION_FORWARD");
     direction = DIRECTION_FORWARD;
   } else {
-    Serial.printf("DIRECTION_BACKWARD");
+    // Serial.printf("DIRECTION_BACKWARD");
     direction = DIRECTION_BACKWARD;
   }
-  Serial.printf("\n");
+  // Serial.printf("\n");
 }
 
 bool Servo::setTimeMs(int t){
@@ -264,10 +264,9 @@ bool Servo::setTimeMs(int t){
       dir ^= 1;
     }
     digitalWrite(dirPin, dir);
-
-    analogWrite(pwmPin, pwmRatioMax);
+    pwmRatio = pwmRatioMax;
+    analogWrite(pwmPin, pwmRatio);
     timeout = 0;
-    // Serial.printf("%s(%d): trigger %sward motion for %d loop with pwmRatio %d" "\n", __func__, t, forward ? "for" : "back", remainingTimeMs, pwmRatioMax);
     raiseError = false;
   }
   return raiseError;
@@ -449,8 +448,7 @@ SetPoint *Servo::getLastSetPoint(){
 }
 
 unsigned int Servo::setPwmRatioMax(unsigned int max){
-  Serial.printf("%s::%s(%d)=>", szName, __func__, max);
-  unsigned int oldPwmRatio = pwmRatio;
+  unsigned int oldMax = pwmRatioMax;
   if(max > PWM_RATIO_MAX){
     pwmRatioMax = PWM_RATIO_MAX;
   }else{
@@ -459,13 +457,19 @@ unsigned int Servo::setPwmRatioMax(unsigned int max){
   if(pwmRatioMax < pwmRatioMin){
     pwmRatioMax = pwmRatioMin;
   }
-  if(pwmRatio > pwmRatioMax){
-    pwmRatio = pwmRatioMax;
+  if(pwmRatioMax != oldMax){
+    // Serial.printf("%s::%s:pwmRatioMax != oldMax (%d != %d)" "\n", szName, __func__, pwmRatioMax, oldMax);
+    if(0 != pwmRatio){
+      // Serial.printf("%s::%s:running, set pwmRatio to %d" "\n", szName, __func__, pwmRatioMax);
+      pwmRatio = pwmRatioMax; // what else ?
+    }
   }
-  if(oldPwmRatio != pwmRatio){
+  if(0 != pwmRatio){ // Only if we are running, no matter the value has changed or not
+    // Serial.printf("%s::%s:running, analogWrite(pwmPin=%d, pwmRatio=%d);" "\n", szName, __func__, pwmPin, pwmRatio);
     analogWrite(pwmPin, pwmRatio);
   }
-  Serial.printf("=>%d" "\n", pwmRatioMax);
+  // Serial.printf("%s::%s(%d)", szName, __func__, max);
+  // Serial.printf("=>%d" "\n", pwmRatioMax);
   return pwmRatioMax;
 }
 
