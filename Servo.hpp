@@ -63,7 +63,7 @@ class Servo {
     static const int MODE_TIMED_MOVE = 2; // reach ADC setting within the requested time
 
     Servo(const ServoSettings *s, const char *name, unsigned int offset);
-    void print(const char *szUnit);
+    void print(Stream *stream, const char *szUnit);
     
     static char *setPointSettingToString(char *szString, SetPoint *setPoint);
     static bool stringToSetPointSetting(const char *start, int sLen, SetPoint *setPoint);

@@ -2,7 +2,7 @@
 
 #include "Servo.hpp"
 
-bool handleATZ(const char *szString, int length) {
+bool handleATZ(Stream *stream, const char *szString, int length) {
   bool raiseError = false;
   int index = 0;
   if(length > 1){

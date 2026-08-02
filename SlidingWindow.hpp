@@ -12,11 +12,10 @@
 class SlidingWindow {
   public:
     SlidingWindow(void){};
-    SlidingWindow(const char *name);
     SlidingWindow(const char *name, unsigned int s);
     unsigned short input(unsigned short newValue);
     unsigned char getFilterLength(void);
-    void print(void);
+    void print(Stream *s);
   private:
     const char *szName;
     unsigned short int values[(1 << __SLIDING_WINDOW_MAX_LOG_SIZE__)];

@@ -3,14 +3,14 @@
 #include "GlobalConfiguration.hpp"
 #include "AtCommand.hpp"
 
-bool handleAmpersAnd(const char *szString, int length){
+bool handleAmpersAnd(Stream *stream, const char *szString, int length){
   bool raiseError = false;
   if(2 == length){
     switch(szString[1]){
       case 'V':
-        Serial.printf("%s:[%4d .. %4d .. %4d]" "\n", zoomServo.getName(), zoomServo.getAdcMinValue(), zoomServo.getAdcValue(), zoomServo.getAdcMaxValue()); // zoomServo.print("mm"); Serial.println();
-        Serial.printf("%s:[%4d .. %4d .. %4d]" "\n", irisServo.getName(), irisServo.getAdcMinValue(), irisServo.getAdcValue(), irisServo.getAdcMaxValue()); // irisServo.print(""); Serial.println();
-        Serial.printf("%s:[%4d .. %4d .. %4d]" "\n", focusServo.getName(), focusServo.getAdcMinValue(), focusServo.getAdcValue(), focusServo.getAdcMaxValue()); // focusServo.print("m"); Serial.println();
+        stream->printf("%s:[%4d .. %4d .. %4d]" "\n", zoomServo.getName(), zoomServo.getAdcMinValue(), zoomServo.getAdcValue(), zoomServo.getAdcMaxValue());
+        stream->printf("%s:[%4d .. %4d .. %4d]" "\n", irisServo.getName(), irisServo.getAdcMinValue(), irisServo.getAdcValue(), irisServo.getAdcMaxValue());
+        stream->printf("%s:[%4d .. %4d .. %4d]" "\n", focusServo.getName(), focusServo.getAdcMinValue(), focusServo.getAdcValue(), focusServo.getAdcMaxValue());
       break;
       case 'W':
         zoomServo.storeSettingsToEEPROM();

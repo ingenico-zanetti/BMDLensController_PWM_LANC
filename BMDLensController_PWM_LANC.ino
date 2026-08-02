@@ -4,6 +4,7 @@
 #include "AtCommandPlus.hpp"
 #include "AtCommandAmpersAnd.hpp"
 #include "Servo.hpp"
+#include "Extender.hpp"
 #include "Lens.hpp"
 #include "GlobalConfiguration.hpp"
 #include "Version.hpp"
@@ -81,9 +82,7 @@ void SystemClock_Config(void)
 #define IrisPWM (PB8)   // TIM4_3 / BluePill.PIN36
 #define IrisDIR (PB4)  // GPIO / BluePill.PIN32
 
-#ifdef __HAS_EXTENDER_SWITCH__
 #define ZoomExtSwitch (PB6) // SCL1 BluePill.PIN34
-#endif
 
 #define ZoomPWM (PB7)   // TIM4_2 / BluePill.PIN35
 #define ZoomDIR (PB3)  // GPIO / BluePill.PIN31
@@ -157,11 +156,13 @@ void setup() {
   oldSeconds = oldMillis / 1000;
   oldFrame = oldMillis / 16; // around 60 fps
 
+  analyzerUSB.setStream(&Serial);
   analyzerUSB.addCallback('I', handleATI);
   analyzerUSB.addCallback('+', handlePlus);
   analyzerUSB.addCallback('&', handleAmpersAnd);
   analyzerUSB.addCallback('Z', handleATZ);
 
+  analyzerSerial.setStream(&commandSerial);
   analyzerSerial.addCallback('I', handleATI);
   analyzerSerial.addCallback('+', handlePlus);
   analyzerSerial.addCallback('&', handleAmpersAnd);
@@ -174,7 +175,7 @@ void setup() {
   focusServo.setMode(Servo::MODE_DURATION);
   zoomServo.setMode(Servo::MODE_DURATION);
   irisServo.setMode(Servo::MODE_DURATION);
- 
+
   powerPresent = (zoomServo.getAdcValue() > 1100);
 
   lancTimer = new HardwareTimer(TIM2);
@@ -182,6 +183,7 @@ void setup() {
   lancTimer->attachInterrupt(lancInterrupt);
   lancTimer->resume();
 
+  pinMode(ZoomExtSwitch, INPUT_PULLUP);
 }
 
 static int previousLancIndex = -1;
@@ -206,6 +208,8 @@ void loop() {
   focusServo.readAdc();
   zoomServo.readAdc();
   irisServo.readAdc();
+  extender.updateState((digitalRead(ZoomExtSwitch) == LOW) ? 1 : 0);
+
   uint32_t newMillis = millis();
   if(newMillis != oldMillis){
     focusServo.run();
@@ -229,14 +233,17 @@ void loop() {
             if(record){
               record = false;
               Serial.printf("+RECORD" "\n");
+              commandSerial.printf("+RECORD" "\n");
             }
             if(review){
               review = false;
               Serial.printf("+REVIEW" "\n");
+              commandSerial.printf("+REVIEW" "\n");
             }
             if(focusChange){
               focusChange = false;
               Serial.printf("+FOCUS:%d" "\n", focusSteps);
+              commandSerial.printf("+FOCUS:%d" "\n", focusSteps);
               if(0 != focusSteps){
                 focusServo.setDirection(focusSteps > 0);
                 if(focusSteps < 0){
@@ -249,6 +256,7 @@ void loop() {
               irisChange = false;
               if(0 != irisSteps){
                 Serial.printf("+IRIS:%d([index]=%d)" "\n", irisSteps, index);
+                commandSerial.printf("+IRIS:%d([index]=%d)" "\n", irisSteps, index);
 #if 0
                 int index = irisServo.getClosestSettingIndexFromAdcValue(irisServo.getAdcValue());
                 // Serial.printf("+IRIS:%d(index=%d)" "\n", irisSteps, index);
@@ -270,6 +278,7 @@ void loop() {
 #endif
               }else{
                 Serial.printf("+IRIS:Auto" "\n");
+                commandSerial.printf("+IRIS:Auto" "\n");
               }
             }
           break;
@@ -277,6 +286,7 @@ void loop() {
           switch(command){
             default:
               Serial.printf("0x18 0x%02X" "\n", command);
+              commandSerial.printf("0x18 0x%02X" "\n", command);
             break;
             case 0x33:
               record = true;
@@ -290,6 +300,7 @@ void loop() {
             switch(command){
             default:
               Serial.printf("0x28 0x%02X" "\n", command);
+              commandSerial.printf("0x28 0x%02X" "\n", command);
             break;
             case 0x00:
             case 0x02:

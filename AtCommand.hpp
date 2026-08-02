@@ -9,7 +9,7 @@
 #define MAX_COMMAND_SIZE (200)
 #define FIRST_LEVEL_COMMANDS (128)
 
-typedef bool (*FirstLevelCommand)(const char *szString, int length);
+typedef bool (*FirstLevelCommand)(Stream *stream, const char *szString, int length);
 
 class AtCommandAnalyzer {
   private:
@@ -19,9 +19,11 @@ class AtCommandAnalyzer {
   uint32_t maxSize;
   uint32_t currentSize;
   FirstLevelCommand firstLevelCommands[FIRST_LEVEL_COMMANDS];
+  Stream *stream;
 
   public:
   AtCommandAnalyzer(void);
+  void setStream(Stream *s);
   void init(uint32_t size);
   char read(void);
   void reInit(void);

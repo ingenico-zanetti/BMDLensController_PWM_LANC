@@ -3,7 +3,7 @@
 #include <string.h>
 #include "GlobalConfiguration.hpp"
 
-bool errorCallback(const char *szString, int length){
+bool errorCallback(Stream *stream, const char *szString, int length){
   (void)szString;
   (void)length;
   return(true);
@@ -14,6 +14,11 @@ AtCommandAnalyzer::AtCommandAnalyzer(void){
     firstLevelCommands[i] = errorCallback;
   }
   init(MAX_COMMAND_SIZE);
+  stream = &Serial;
+}
+
+void AtCommandAnalyzer::setStream(Stream *s){
+  stream = s;
 }
 
 char AtCommandAnalyzer::read(void){
@@ -93,7 +98,7 @@ void AtCommandAnalyzer::analyze(char *szString){
       length = (int)(next - start);
     }
     if(length > 0){
-      error = firstLevelCommands[(int)first](start, length);
+      error = firstLevelCommands[(int)first](stream, start, length);
     }
     if(error || endReached){
       break;
@@ -101,9 +106,9 @@ void AtCommandAnalyzer::analyze(char *szString){
     start = next + 1;
   }
   if(error){
-    Serial.printf("\r\nERROR\r\n");
+    stream->printf("\r\nERROR\r\n");
   }else{
-    Serial.printf("\r\nOK\r\n");
+    stream->printf("\r\nOK\r\n");
   }
 }
 

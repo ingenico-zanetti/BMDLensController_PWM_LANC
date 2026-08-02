@@ -104,19 +104,19 @@ void Servo::setPins(int adc, int pwm, int dir, int dirPolarity){
   dirPin = dir; digitalWrite(dirPin, dirPinPolarity); pinMode(dirPin, OUTPUT);
 }
 
-void Servo::print(const char *szUnit){
+void Servo::print(Stream *stream, const char *szUnit){
   for(int i = 0 ; i < setPointCount ; i++){
     char setPointSettingString[8];
     setPointSettingToString(setPointSettingString, setPoints + i);
-    Serial.printf("setPoints[%2d]={%5s%2s, %4d steps}" "\n",
+    stream->printf("setPoints[%2d]={%5s%2s, %4d steps}" "\n",
         i,
         setPointSettingString,
         szUnit,
         setPoints[i].adcValue
         );
   }
-  Serial.printf("parameters={.pwmScale=%3u, .timeoutScale=%3u, .minSpeed=%3u}" "\n", pwmScale, timeoutScale, pwmRatioMin);
-  filter.print();
+  stream->printf("parameters={.pwmScale=%3u, .timeoutScale=%3u, .minSpeed=%3u}" "\n", pwmScale, timeoutScale, pwmRatioMin);
+  filter.print(stream);
 }
 
 SetPoint *Servo::getSetPoints(int *actualCount){

@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "Servo.hpp"
+#include "Extender.hpp"
 #include "AtCommand.hpp"
 #include "GlobalConfiguration.hpp"
 
@@ -15,10 +16,10 @@ static int countComas(const char *szString, int length){
   return(count);
 }
 
-typedef bool (*plusSubFunction)(Servo *servo, const char c, const char *szString, int comas);
+typedef bool (*plusSubFunction)(Stream *stream, Servo *servo, const char c, const char *szString, int comas);
 static const char *useATW =  "(use AT&W to make the setting persistent)";
 
-static bool plusUsage(Servo *servo, const char c, const char *szString, int comas){
+static bool plusUsage(Stream *stream, Servo *servo, const char c, const char *szString, int comas){
   (void)servo;
   (void)c;
   (void)szString;
@@ -26,11 +27,11 @@ static bool plusUsage(Servo *servo, const char c, const char *szString, int coma
   return(false);
 }
 
-static bool plusRead(Servo *servo, const char c, const char *szString, int comas){
+static bool plusRead(Stream *stream, Servo *servo, const char c, const char *szString, int comas){
   (void)szString;
   (void)comas;
   (void)c;
-  Serial.printf("%s: [%4d .. %4d .. %4d], .P=%3d, .T=%3d, .M=%2d" "\n", 
+  stream->printf("%s: [%4d .. %4d .. %4d], .P=%3d, .T=%3d, .M=%2d" "\n", 
       servo->getName(),
       servo->getAdcMinValue(), servo->getAdcValue(), servo->getAdcMaxValue(),
       servo->getPwmScale(), servo->getTimeoutScale(), servo->getPwmRatioMin()
@@ -112,7 +113,7 @@ static bool getParameterValueFromString(const char *szString, unsigned char *val
   return(raiseError);
 }
 
-static bool plusWrite(Servo *servo, const char c, const char *szString, int comas){
+static bool plusWrite(Stream *stream, Servo *servo, const char c, const char *szString, int comas){
   // Serial.printf("%s(%c, \"%s\", %d)" "\n", __func__, c, szString, comas);
   (void)c;
   bool raiseError = false;
@@ -217,13 +218,13 @@ static bool plusWrite(Servo *servo, const char c, const char *szString, int coma
         nptr = lastComa + 1;
         if('\0' == lastComa[1]){
           raiseError = servo->setSetPoint(setPoint.setting, servo->getAdcValue());
-          Serial.printf("%s: setting %d with current adcValue %d instead of %d => %d %s" "\n", servo->getName(), setPoint.setting, servo->getAdcValue(), setPoint.adcValue, raiseError, useATW);
+          stream->printf("%s: setting %d with current adcValue %d instead of %d => %d %s" "\n", servo->getName(), setPoint.setting, servo->getAdcValue(), setPoint.adcValue, raiseError, useATW);
         }else{
           nptr = lastComa + 1;
           float thirdValue = strtof(nptr, &end);
           if(end != nptr){
             raiseError = servo->setSetPoint(setPoint.setting, (unsigned short)thirdValue);
-            Serial.printf("%s: setting %d with provided adcValue %d instead of %d => %d %s" "\n", servo->getName(), setPoint.setting, (unsigned short)thirdValue, setPoint.adcValue, raiseError, useATW);
+            stream->printf("%s: setting %d with provided adcValue %d instead of %d => %d %s" "\n", servo->getName(), setPoint.setting, (unsigned short)thirdValue, setPoint.adcValue, raiseError, useATW);
           }else{
             raiseError = true;
           }
@@ -262,7 +263,7 @@ static bool plusWrite(Servo *servo, const char c, const char *szString, int coma
   return(raiseError);
 }
 
-bool handlePlus(const char *szString, int length) {
+bool handlePlus(Stream *stream, const char *szString, int length) {
   bool raiseError = true;
   int comas = countComas(szString, length);
   int commandLength = length;
@@ -290,7 +291,10 @@ bool handlePlus(const char *szString, int length) {
   if(sub){
     servo = getServo(axis);
     if(servo){
-      raiseError = sub(servo, axis, szString, comas);
+      raiseError = sub(stream, servo, axis, szString, comas);
+    }else if(('X' == axis) && (plusRead == sub)){
+      raiseError = false;
+      extender.printState(stream);
     }
   }
   // Serial.printf("%s(\"%s\")=>%d" "\n", __func__, szString, raiseError);

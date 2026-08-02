@@ -6,7 +6,7 @@
 #include "GlobalConfiguration.hpp"
 #include "AtCommand.hpp"
 
-bool handleATI(const char *szString, int length) {
+bool handleATI(Stream *stream, const char *szString, int length) {
   bool raiseError = false;
   int index = 0;
   if(length > 1){
@@ -17,7 +17,7 @@ bool handleATI(const char *szString, int length) {
       raiseError = true;
     break;
     case 0:
-      Serial.println(getFWVersion());
+      stream->println(getFWVersion());
       break;
     case 1:{
         char minZoomString[8];
@@ -32,16 +32,16 @@ bool handleATI(const char *szString, int length) {
         irisServo.setPointSettingToString(maxIrisString, irisServo.getLastSetPoint());
         focusServo.setPointSettingToString(minFocusString, focusServo.getFirstSetPoint());
         focusServo.setPointSettingToString(maxFocusString, focusServo.getLastSetPoint());
-        Serial.printf("%s:" " Zoom in [%s..%s]mm," " Iris in [%s..%s]," " Focus in [%s..%s]m" "\n", szLensName, minZoomString, maxZoomString, minIrisString, maxIrisString, minFocusString, maxFocusString);
+        stream->printf("%s:" " Zoom in [%s..%s]mm," " Iris in [%s..%s]," " Focus in [%s..%s]m" "\n", szLensName, minZoomString, maxZoomString, minIrisString, maxIrisString, minFocusString, maxFocusString);
       }
       break;
       case 2:
-        Serial.printf("%s:" "\n", zoomServo.getName());
-        zoomServo.print("mm");
-        Serial.printf("%s:" "\n", focusServo.getName());
-        focusServo.print("m");
-        Serial.printf("%s:" "\n", irisServo.getName());
-        irisServo.print("");
+        stream->printf("%s:" "\n", zoomServo.getName());
+        zoomServo.print(stream, "mm");
+        stream->printf("%s:" "\n", focusServo.getName());
+        focusServo.print(stream, "m");
+        stream->printf("%s:" "\n", irisServo.getName());
+        irisServo.print(stream, "");
       break;
   }
   return(raiseError);
