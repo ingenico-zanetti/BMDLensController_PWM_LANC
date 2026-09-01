@@ -69,9 +69,9 @@ void SystemClock_Config(void)
 /*
  * PIN configuration
  */
-#define ZoomADC (PA4)  // ADC12_IN4 / BluePill.PIN09
-#define IrisADC (PA5)  // ADC12_IN5 / BluePill.PIN10
-#define FocusADC (PA6) // ADC12_IN6 / BluePill.PIN11
+#define IrisADC  (PA4) // ADC12_IN4 / BluePill.PIN09 
+#define FocusADC (PA5) // ADC12_IN5 / BluePill.PIN10
+#define ZoomADC  (PA6) // ADC12_IN6 / BluePill.PIN11
 #ifdef __HAS_SPEED_CONTROL__
 #define SpeedADC (PA7) // ADC12_IN7 / BluePill.PIN12
 #endif

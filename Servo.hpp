@@ -58,6 +58,15 @@ class Servo {
       bool     complete;
     } timed_move_context;
 
+    struct {
+      int32_t target;
+      int32_t position;
+      int32_t kP;
+      int32_t kI;
+      int32_t kD;
+      int32_t errorSum;
+    } pid_context;
+    
   public:
     static const int MODE_DURATION = 0;   // run at requested PWM setting for the giving time
     static const int MODE_ADC = 1;        // try to reach the request ADC setting at requested PWM setting before timeout
@@ -94,6 +103,9 @@ class Servo {
     bool timedMoveInit(uint32_t milliseconds);
 
     int run(void);
+    bool runPID(void);
+    bool setSpeedAndDirection(int speed, enum Direction_e direction);
+
 
     SetPoint *getFirstSetPoint(void);
     SetPoint *getLastSetPoint(void);

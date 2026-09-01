@@ -14,6 +14,18 @@ This new version:
 - adds the capability to use the UART (that was meant for Pan&Tilt daisy-chain) alongside the USB CDC to control the lens
 The UART interface uses 8P1 at 9600bps.
 
+FW Revision History:
+
+4.1.0: (validation FW for HW 2.1)
+- UART-based LANC OK
+- UART command stream: OK
+- hardware PWM: mostly OK
+- ADC: due to faulty HW 2.1, not validated
+
+4.1.1: (validation FW for HW 2.2)
+- ADC: use the proper ADC chanel for Zoom, Iris and Focus, it was a mess, now it's fine
+- add delay() in the print() method for servo (unreliable on CDC-ACM channel, not tested yet on UART)
+
 The device is AT-command driven ; the main command to drive each servo is AT+X, were X is one of Z, I or F,
 for, respectively, Zoom, Iris and Focus servo. Other commands exists to retrieve information about the HW/FW or state of every servo:
 The command are case-insensitive (everything is upper case internally).

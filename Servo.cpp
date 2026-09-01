@@ -114,6 +114,7 @@ void Servo::print(Stream *stream, const char *szUnit){
         szUnit,
         setPoints[i].adcValue
         );
+    delay(40);
   }
   stream->printf("parameters={.pwmScale=%3u, .timeoutScale=%3u, .minSpeed=%3u}" "\n", pwmScale, timeoutScale, pwmRatioMin);
   filter.print(stream);
@@ -298,7 +299,7 @@ unsigned int Servo::updatePWMRatio(void){
     newPwmRatio = pwmRatioMax;
   }
   if(newPwmRatio != pwmRatio){
-    // Serial.printf("%s:: update PWM Ratio from %d to %d" "\n", szName, pwmRatio, newPwmRatio);
+    Serial.printf("%s:: update PWM Ratio from %d to %d" "\n", szName, pwmRatio, newPwmRatio);
     pwmRatio = newPwmRatio;
     if(0 == pwmRatio){
       // We are "close enough" aka "in the window"
@@ -312,7 +313,7 @@ unsigned int Servo::updatePWMRatio(void){
 
 bool Servo::setDeltaAdc(int delta){
   unsigned int target = adcValue + delta;
-  // Serial.printf("%s::%s(%d)=>target=%u" "\n", szName, __func__, delta, target);
+  Serial.printf("%s::%s(%d)=>target=%u" "\n", szName, __func__, delta, target);
   if(0 == delta){
     return false;
   }
@@ -329,7 +330,7 @@ bool Servo::setDeltaAdc(int delta){
     }else{
       timeout = 1;
     }
-    // Serial.printf("%s:timeout=%ums" "\n", szName, timeout);
+    Serial.printf("%s:timeout=%ums" "\n", szName, timeout);
   }else{
     raiseError = true;
   }
@@ -603,4 +604,12 @@ bool Servo::setTimeoutScale(unsigned char scale){
     timeoutScale = 1;
   }
   return raiseError;
+}
+
+bool Servo::runPID(void){
+  return(false);
+}
+
+bool Servo::setSpeedAndDirection(int speed, enum Direction_e direction){
+  return(false);
 }
