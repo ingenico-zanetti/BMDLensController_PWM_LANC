@@ -31,9 +31,9 @@ void Servo::loadSettingsFromMemory(const ServoSettings *settings){
     setPoints[setPointCount] = settings->setPoints[setPointCount];
     setPointCount++;
   }
-  timeoutScale = settings->parameters.timeoutScale;
-  pwmScale     = settings->parameters.pwmScale;
-  pwmRatioMin  = settings->parameters.minSpeed;
+  pid_context.kP = (float)(settings->parameters.pidP / 256.0);
+  pid_context.kI = (float)(settings->parameters.pidI / 256.0);
+  pid_context.kD = (float)(settings->parameters.pidD / 256.0);
 }
 
 void Servo::loadSettingsFromFW(void){
@@ -62,9 +62,11 @@ void Servo::storeSettingsToEEPROM(){
     temp.setPoints[count] = setPoints[count];
     count++;
   }
-  temp.parameters.timeoutScale = timeoutScale;
-  temp.parameters.pwmScale = pwmScale;
-  temp.parameters.minSpeed = pwmRatioMin;
+  temp.parameters.pidP = getKP();
+  temp.parameters.pidI = getKI();
+  temp.parameters.pidD = getKD();
+  temp.parameters.rfu = 0;
+  
   EEPROM.put(eepromOffset, temp);
 }
 
@@ -80,12 +82,9 @@ Servo::Servo(const ServoSettings *s, const char *name, unsigned int offset){
   pwmPin = -1;
   dirPin = -1;
   dirPinPolarity = -1;
-  adcMinValue = 4095;
-  adcMaxValue = 0;
   pwmRatioMax = 0xC0; // 8-bit PWM, but beyond 0xC0, the behaviour is not predictable
   filter = SlidingWindow(name, 4);
-  direction = DIRECTION_STOPPED;
-  timeout = 0;
+  direction = Servo::DIRECTION_STOPPED;
 }
 
 void Servo::setPins(int adc, int pwm, int dir, int dirPolarity){
@@ -116,7 +115,14 @@ void Servo::print(Stream *stream, const char *szUnit){
         );
     delay(40);
   }
-  stream->printf("parameters={.pwmScale=%3u, .timeoutScale=%3u, .minSpeed=%3u}" "\n", pwmScale, timeoutScale, pwmRatioMin);
+  char floatString[32];
+  stream->printf("parameters={.kP=");
+  dtostrf(pid_context.kP, 6, 3, floatString);
+  stream->printf("%s, kI=", floatString);
+  dtostrf(pid_context.kI, 6, 3, floatString);
+  stream->printf("%s, kD=", floatString);
+  dtostrf(pid_context.kD, 6, 3, floatString);
+  stream->printf("%s}" "\n", floatString);
   filter.print(stream);
 }
 
@@ -193,29 +199,11 @@ bool Servo::setSetPoint(unsigned short setting, unsigned short adcValue){
 unsigned short Servo::readAdc(void){
   unsigned short newAdcValue = analogRead(adcPin);
   adcValue = filter.input(newAdcValue);
-  if(adcValue < adcMinValue){
-    adcMinValue = adcValue;
-  }
-  if(adcValue > adcMaxValue){
-    adcMaxValue = adcValue;
-  }
   return(adcValue);
 }
 
 unsigned short Servo::getAdcValue(void){
   return(adcValue);
-}
-
-unsigned short Servo::getAdcMinValue(void){
-  return(adcMinValue);
-}
-
-unsigned short Servo::getAdcMaxValue(void){
-  return(adcMaxValue);
-}
-
-void Servo::resetMinMax(void){
-  adcMinValue = adcMaxValue = adcValue;
 }
 
 const char *Servo::getName(void){
@@ -267,7 +255,6 @@ bool Servo::setTimeMs(int t){
     digitalWrite(dirPin, dir);
     pwmRatio = pwmRatioMax;
     analogWrite(pwmPin, pwmRatio);
-    timeout = 0;
     raiseError = false;
   }
   return raiseError;
@@ -275,40 +262,6 @@ bool Servo::setTimeMs(int t){
 
 int Servo::getTimeMs(void){
   return remainingTimeMs;
-}
-
-unsigned int Servo::updatePWMRatio(void){
-  // How far are we ?
-  unsigned int absoluteDelta;
-  int delta = targetAdcValue - adcValue;
-  enum Direction_e oldDirection = direction;
-  if(delta > 0){
-    direction = DIRECTION_BACKWARD;
-    absoluteDelta = (unsigned int)(delta);
-  }else{
-    direction = DIRECTION_FORWARD;
-    absoluteDelta = (unsigned int)(-delta);
-  }
-  if(direction != oldDirection){
-    digitalWrite(dirPin, direction);
-  }
-  // PWM is proportionnal to the remaining distance (in ADC steps)
-  unsigned int newPwmRatio = (absoluteDelta / pwmScale);
-  // User provided "speed limit"
-  if(newPwmRatio > pwmRatioMax){
-    newPwmRatio = pwmRatioMax;
-  }
-  if(newPwmRatio != pwmRatio){
-    Serial.printf("%s:: update PWM Ratio from %d to %d" "\n", szName, pwmRatio, newPwmRatio);
-    pwmRatio = newPwmRatio;
-    if(0 == pwmRatio){
-      // We are "close enough" aka "in the window"
-      stopMotor("WINDOW");
-    }else{
-      analogWrite(pwmPin, pwmRatio);
-    }
-  }
-  return pwmRatio;
 }
 
 bool Servo::setDeltaAdc(int delta){
@@ -321,16 +274,11 @@ bool Servo::setDeltaAdc(int delta){
   if(isAdcTargetValid(target)){
     mode = MODE_ADC;
     targetAdcValue = target;
-    updatePWMRatio();
     if(pwmRatio > 0){
       if(delta < 0){
         delta = -delta;
       }
-      timeout = (delta * timeoutScale) / pwmRatio;
-    }else{
-      timeout = 1;
     }
-    Serial.printf("%s:timeout=%ums" "\n", szName, timeout);
   }else{
     raiseError = true;
   }
@@ -388,13 +336,12 @@ void Servo::stopMotor(const char *szReason){
   direction = DIRECTION_STOPPED;
   analogWrite(pwmPin, 0);
   digitalWrite(dirPin, 0);
-  // Reset min/max
-  resetMinMax();
   // Serial.printf("%s:%4d" "\n", getName(), getAdcValue());
 }
 
-int Servo::run(void){
+int Servo::everyMilliSecond(void){
   // Serial.printf("%s::run()" "\n", getName());
+  updateTarget();
   if(Servo::MODE_TIMED_MOVE == mode){
     if (false == timed_move_context.complete) {
       timed_move_context.decision += timed_move_context.adcIncrement;
@@ -411,17 +358,10 @@ int Servo::run(void){
         setTargetAdcValue(timed_move_context.stopADC);
       }else{
         targetAdcValue = timed_move_context.targetADC;
-        updatePWMRatio();
       }
     }
     return(timed_move_context.complete);
   }else{
-    if(timeout > 0){
-      if(0 == --timeout){
-          stopMotor("TIMEOUT");
-          mode = Servo::MODE_DURATION;
-      }
-    }
     if(Servo::MODE_DURATION == mode){
       if(remainingTimeMs > 0){
         if(--remainingTimeMs == 0){
@@ -430,7 +370,6 @@ int Servo::run(void){
       }
       return(remainingTimeMs);
     }else{
-      updatePWMRatio();
       return(adcValue);
     }
   }
@@ -450,13 +389,10 @@ SetPoint *Servo::getLastSetPoint(){
 
 unsigned int Servo::setPwmRatioMax(unsigned int max){
   unsigned int oldMax = pwmRatioMax;
-  if(max > PWM_RATIO_MAX){
-    pwmRatioMax = PWM_RATIO_MAX;
+  if(max > PWM_RATIO_HARD_LIMIT){
+    pwmRatioMax = PWM_RATIO_HARD_LIMIT;
   }else{
     pwmRatioMax = max;
-  }
-  if(pwmRatioMax < pwmRatioMin){
-    pwmRatioMax = pwmRatioMin;
   }
   if(pwmRatioMax != oldMax){
     // Serial.printf("%s::%s:pwmRatioMax != oldMax (%d != %d)" "\n", szName, __func__, pwmRatioMax, oldMax);
@@ -472,18 +408,6 @@ unsigned int Servo::setPwmRatioMax(unsigned int max){
   // Serial.printf("%s::%s(%d)", szName, __func__, max);
   // Serial.printf("=>%d" "\n", pwmRatioMax);
   return pwmRatioMax;
-}
-
-unsigned int Servo::setPwmRatioMin(unsigned int min){
-  if(min > pwmRatioMax){
-    pwmRatioMin = pwmRatioMax;
-  }else{
-    pwmRatioMin = min;
-  }
-  if(0 == pwmRatioMin){
-    pwmRatioMin++;
-  }
-  return pwmRatioMin;
 }
 
 bool Servo::isAdcTargetValid(unsigned int adcValue){
@@ -548,7 +472,7 @@ bool Servo::getAdcValueFromSetting(SetPoint *setPoint){
       int beforeAdcValue = (int)setPoints[index].adcValue;
       int afterSetting   = (int)setPoints[index + 1].setting;
       int afterAdcValue  = (int)setPoints[index + 1].adcValue;
-      // interpolate between 2 known settings
+      // linear interpolation between 2 known settings
       setPoint->adcValue = (unsigned short)(beforeAdcValue + ((setting - beforeSetting) * (afterAdcValue - beforeAdcValue)) / (afterSetting - beforeSetting));
     }else{
       raiseError = true;
@@ -584,32 +508,60 @@ int Servo::getClosestSettingIndexFromAdcValue(unsigned short adc){
   }
 }
 
-bool Servo::setPwmScale(unsigned char scale){
-  bool raiseError = false;
-  if(scale > 0){
-    pwmScale = (unsigned int)scale;
-  }else{
-    raiseError = true;
-    pwmScale = 1;
-  }
-  return raiseError;
-}
-
-bool Servo::setTimeoutScale(unsigned char scale){
-  bool raiseError = false;
-  if(scale > 0){
-    timeoutScale = (unsigned int)scale;
-  }else{
-    raiseError = true;
-    timeoutScale = 1;
-  }
-  return raiseError;
-}
-
 bool Servo::runPID(void){
+  
   return(false);
 }
 
-bool Servo::setSpeedAndDirection(int speed, enum Direction_e direction){
+bool Servo::setSpeedAndDirection(int speed, int direction){
+  (void)speed;
+  (void)direction;
+  return(false);
+}
+
+int16_t Servo::getKP(void){
+  return((int16_t)(pid_context.kP * 256.0));
+}
+
+int16_t Servo::getKI(void){
+  return((int16_t)(pid_context.kI * 256.0));
+}
+
+int16_t Servo::getKD(void){
+  return((int16_t)(pid_context.kD * 256.0));
+}
+
+static bool isValidPIDParameterValue(float value){
+  return((127.0 <= value) && (value <= 127.0));
+}
+
+bool Servo::setKP(float value){
+  bool raiseError = true;
+  if(isValidPIDParameterValue(value)){
+    pid_context.kP = value;
+    raiseError = false;
+  }
+  return(raiseError);
+}
+
+bool Servo::setKI(float value){
+  bool raiseError = true;
+  if(isValidPIDParameterValue(value)){
+    pid_context.kI = value;
+    raiseError = false;
+  }
+  return(raiseError);
+}
+
+bool Servo::setKD(float value){
+  bool raiseError = true;
+  if(isValidPIDParameterValue(value)){
+    pid_context.kD = value;
+    raiseError = false;
+  }
+  return(raiseError);
+}
+
+bool Servo::updateTarget(void){
   return(false);
 }

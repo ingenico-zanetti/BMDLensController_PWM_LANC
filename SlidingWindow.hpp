@@ -13,14 +13,14 @@ class SlidingWindow {
   public:
     SlidingWindow(void){};
     SlidingWindow(const char *name, unsigned int s);
-    unsigned short input(unsigned short newValue);
-    unsigned char getFilterLength(void);
+    unsigned short input(uint16_t newValue);
+    unsigned int getFilterLength(void);
     void print(Stream *s);
   private:
     const char *szName;
-    unsigned short int values[(1 << __SLIDING_WINDOW_MAX_LOG_SIZE__)];
+    uint16_t values[(1 << __SLIDING_WINDOW_MAX_LOG_SIZE__)];
     int index;
-    unsigned long int somme;
+    uint32_t somme;
     unsigned int actual_size;
     unsigned int log_size;
 };

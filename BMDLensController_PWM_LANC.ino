@@ -118,14 +118,14 @@ static int lancIndex = 0;
 
 static void lancInterrupt(void){
   // Receive the previous byte (we receive byte N when transmitting byte N+1)
-  if((0 < lancIndex) && (lancIndex <= sizeof(lancTxData))){
+  if((0 < lancIndex) && (lancIndex <= (int)sizeof(lancTxData))){
     if(lancSerial.available()){
       int rxIndex = lancIndex - 1; 
       lancRxData[rxIndex] = lancSerial.read() ^ 0xFF; // Inverted logic
     }
   }
   // Transmit next byte if we are inside a telegram
-  if((0 <= lancIndex) && (lancIndex < sizeof(lancTxData))){
+  if((0 <= lancIndex) && (lancIndex < (int)sizeof(lancTxData))){
     lancSerial.write(lancTxData[lancIndex]);
   }
   lancIndex++;
@@ -172,9 +172,9 @@ void setup() {
   zoomServo.setPins(ZoomADC, ZoomPWM, ZoomDIR);
   irisServo.setPins(IrisADC, IrisPWM, IrisDIR);
 
-  focusServo.setMode(Servo::MODE_DURATION);
-  zoomServo.setMode(Servo::MODE_DURATION);
-  irisServo.setMode(Servo::MODE_DURATION);
+  focusServo.setMode(Servo::MODE_ADC);
+  zoomServo.setMode(Servo::MODE_ADC);
+  irisServo.setMode(Servo::MODE_ADC);
 
   powerPresent = (zoomServo.getAdcValue() > 1100);
 
@@ -219,9 +219,9 @@ void loop() {
 
   uint32_t newMillis = millis();
   if(newMillis != oldMillis){
-    focusServo.run();
-    zoomServo.run();
-    irisServo.run();
+    focusServo.everyMilliSecond();
+    zoomServo.everyMilliSecond();
+    irisServo.everyMilliSecond();
     oldMillis = newMillis;
 #ifndef __NO_LANC__
     int currentLancIndex = lancIndex;

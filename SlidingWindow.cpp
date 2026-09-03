@@ -8,13 +8,13 @@ SlidingWindow::SlidingWindow(const char *name, unsigned int log_size){
   actual_size = (1 << log_size);
   somme = 0;
   index = actual_size - 1;
-  for(int i = 0 ; i < actual_size ; i++){
+  for(unsigned int i = 0 ; i < actual_size ; i++){
     values[i] = 0;
   }
   szName = name;
 }
 
-unsigned short SlidingWindow::input(unsigned short newValue){
+uint16_t SlidingWindow::input(uint16_t newValue){
   somme -= (unsigned long int)values[index];
   somme += (unsigned long int)newValue;
   values[index] = newValue;
@@ -23,17 +23,17 @@ unsigned short SlidingWindow::input(unsigned short newValue){
   }else{
     index = actual_size - 1;
   }
-  return(somme >> log_size);
+  return(uint16_t)(somme >> log_size);
 }
 
-unsigned char SlidingWindow::getFilterLength(void){
+unsigned int SlidingWindow::getFilterLength(void){
   return(actual_size);
 }
 
 void SlidingWindow::print(Stream *stream){
   stream->printf("[%s] size: %d, [", szName, actual_size);
-  for(int i = 0 ; i < actual_size ; i++){
+  for(unsigned int i = 0 ; i < actual_size ; i++){
     stream->printf("%u ", values[i]);
   }
-  stream->printf("], somme=%lu" "\n", somme);
+  stream->printf("], filtered=%u" "\n", (uint32_t)(somme >> log_size));
 }

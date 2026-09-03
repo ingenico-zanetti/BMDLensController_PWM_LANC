@@ -26,6 +26,58 @@ FW Revision History:
 - ADC: use the proper ADC chanel for Zoom, Iris and Focus, it was a mess, now it's fine
 - add delay() in the print() method for servo (unreliable on CDC-ACM channel, not tested yet on UART)
 
+4.1.2:
+- TODO: Add full PID for servo
+- TODO: Add speed mode for servo (only used on zoom, though)
+
+Explanation on SPEED_MODE:
+to be consistent with operation through LANC remote, a new SPEED_MODE was introduced. It is meant for operating the zoom, but is implemented in the Servo class, so available for all servos.
+It has 8 speed (mapped from LANC [0x00 .. 0x0E] or [0x10 .. 0x1E]).
+0x00 is the slow speed, while 0x0E is the fastest ; only even values exist, so the LANC speed is divided by 2, leading to a [0 .. 7] range:
+
+- 7, full range in about 800ms
+- 6, full range in about 1600ms
+- 5, full range in about 3200ms
+- 4, full range in about 6400ms
+- 3, full range in about 12800ms
+- 2, full range in about 25600ms
+- 1, full range in about 51200ms
+- 0, full range in about 102400ms
+
+This is done internally but using a "target predictor" with a dedicated "speed mode", that increases the target position by the correct amount every millisecond.
+Let's say zoom has ADC range [1708 .. 2997], it needs incrementing by 1289 ADC steps to cover the full range.
+To avoid rounding errors, the algorithm uses integer math:
+If speed is 7 (full range in 800ms), this leads to:
+- initialize a decision with 0
+- each millisecond add 1289 to the decision
+- while decision >= 800ms, increase target ADC by 1, remove 800 from decision
+then the new target ADC is fed into the PID controller that tries and followes.
+
+This is what is used when receiving zoom "orders" from the LANC.
+
+The same mechanism applies to TIMED_MOVE_MODE, except with a user defined time and range (for example reaching a position within 4.5s would meant a delta ADC to travel in the given time).
+
+Then there is the classical DURATION_MODE where the servo is run in open-loop mode for a given amount of time at a given PWM setting,
+and also the classical ADC_MODE where the target is to be reached as fast a the current PWM setting allows
+
+So:
+
+- speed and direction aka SPEED_MODE
+	AT+Z=[1..8]{+-} will move at the request speed, in the requested direction ; AT+Z=0 will stop the move
+
+- ADC target within time aka TIMED_MOVE_MODE
+  AT+Z={+-}[deltaADC],<float time>s will (try and) move to the new ADC target within the float seconds provided
+  AT+Z=[targetADC],<float time>s will (try and) move to the new ADC target within the float seconds provided
+
+- ADC target with an optional max PWM setting (if not provided the current limit is used) aka ADC_MODE
+  AT+Z={+-}[deltaADC],<integer max PWM> will (try and) move to the new ADC target, enforcing max PWM setting
+  AT+Z=[targetADC],<integer max PWM> will (try and) move to the new ADC target, enforcing max PWM setting
+
+- DURATION_MODE
+  AT+Z={+-}<integer time in ms>m,<integer max PWM> will move in the given direction for the provided time, at the provided PWM setting
+
+
+
 The device is AT-command driven ; the main command to drive each servo is AT+X, were X is one of Z, I or F,
 for, respectively, Zoom, Iris and Focus servo. Other commands exists to retrieve information about the HW/FW or state of every servo:
 The command are case-insensitive (everything is upper case internally).
@@ -149,6 +201,7 @@ The device uses 12-bit ADC and a low pass averaging filter to minimize the noise
 
 The "move" command is highly polymorphic ; there is 3 main ways of specifying a move:
 - time and direction
+- speed and direction
 - ADC value to reach, both relative and absolute
 - setpoint
   

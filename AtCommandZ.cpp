@@ -3,6 +3,7 @@
 #include "Servo.hpp"
 
 bool handleATZ(Stream *stream, const char *szString, int length) {
+  (void)stream;
   bool raiseError = false;
   int index = 0;
   if(length > 1){

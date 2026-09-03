@@ -8,9 +8,9 @@ bool handleAmpersAnd(Stream *stream, const char *szString, int length){
   if(2 == length){
     switch(szString[1]){
       case 'V':
-        stream->printf("%s:[%4d .. %4d .. %4d]" "\n", zoomServo.getName(), zoomServo.getAdcMinValue(), zoomServo.getAdcValue(), zoomServo.getAdcMaxValue());
-        stream->printf("%s:[%4d .. %4d .. %4d]" "\n", irisServo.getName(), irisServo.getAdcMinValue(), irisServo.getAdcValue(), irisServo.getAdcMaxValue());
-        stream->printf("%s:[%4d .. %4d .. %4d]" "\n", focusServo.getName(), focusServo.getAdcMinValue(), focusServo.getAdcValue(), focusServo.getAdcMaxValue());
+        stream->printf("%s:[adc=%4d]" "\n", zoomServo.getName(),  zoomServo.getAdcValue());
+        stream->printf("%s:[adc=%4d]" "\n", irisServo.getName(),  irisServo.getAdcValue());
+        stream->printf("%s:[adc=%4d]" "\n", focusServo.getName(), focusServo.getAdcValue());
       break;
       case 'W':
         zoomServo.storeSettingsToEEPROM();

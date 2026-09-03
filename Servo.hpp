@@ -5,24 +5,30 @@
 #include "ServoAndLens.hpp"
 #include "GlobalConfiguration.hpp"
 
-enum Direction_e {
-  DIRECTION_BACKWARD = -1,
-  DIRECTION_STOPPED  = 0,
-  DIRECTION_FORWARD  = 1
-} ;
-
-#define PWM_RATIO_MAX (0xC0)
+#define PWM_RATIO_HARD_LIMIT (0xC0)
 
 class Servo {
+  public:
+    // possible mode, either through UART/CDC-ACM coammands or LANC
+    static const int MODE_ADC        = 0; // move up-to a given position
+    static const int MODE_DURATION   = 1; // move for a given time
+    static const int MODE_TIMED_MOVE = 2; // move to a position in a given time
+    static const int MODE_SPEED      = 3; // move at as constant as possible speed 
+
+    // cuurrent direction of rotation
+    static const int DIRECTION_BACKWARD = -1;
+    static const int DIRECTION_STOPPED  = 0;
+    static const int DIRECTION_FORWARD  = 1;
+
   private:
     SetPoint setPoints[MAX_SET_POINTS];
     int setPointCount;
-    unsigned short int adcValue;
-    unsigned short int adcMinValue;
-    unsigned short int adcMaxValue;
+    unsigned short int adcValue;    // as read from the ADC converter and smoothed by the sliding window filter
+    // unsigned short int adcMinValue; // for statistical purpose only ; might be removed, as you can now print the sliding window
+    // unsigned short int adcMaxValue; // for statistical purpose only ; might be removed, as you can now print the sliding window
     const char *szName;
     int remainingTimeMs;
-    enum Direction_e direction;
+    int direction;
     int adcPin;
     int pwmPin;
     int dirPin;
@@ -32,12 +38,8 @@ class Servo {
     unsigned int targetAdcValue;
     unsigned int pwmRatio;
     unsigned int pwmRatioMax;
-    unsigned int pwmRatioMin;
-    unsigned int pwmScale;
-    unsigned int timeoutScale;
-    unsigned int timeout;
 
-    unsigned int updatePWMRatio(void);
+    bool updateTarget(void);
 
     int getSetPointIndexFromSetting(unsigned short setting);
     int getSetPointPreviousIndexFromSetting(unsigned short setting);
@@ -52,25 +54,30 @@ class Servo {
       uint32_t stopADC;            // ADC position we aim for
       uint32_t msIncrement;        // time increment for decision
       uint32_t adcIncrement;       // adc increment for decision ; also the absolute value of (stopADC - startADC)
-      uint32_t decision;           // use to update targetADC based on msIncrement and adcIncrement
+      uint32_t decision;           // used to update targetADC based on msIncrement and adcIncrement
       int32_t  targetADC;          // where we would like to be
       int32_t  targetADCIncrement; // +1/-1
       bool     complete;
     } timed_move_context;
 
     struct {
-      int32_t target;
-      int32_t position;
-      int32_t kP;
-      int32_t kI;
-      int32_t kD;
-      int32_t errorSum;
+      int mode;
+      uint32_t timeMs;
+
+    } target_context;
+
+    struct {
+      float kP;
+      float kI;
+      float kD;
+      float previousError;
+      float errorIntegral;
+      float dt;
+      float minOutput;
+      float maxOutput;
     } pid_context;
     
   public:
-    static const int MODE_DURATION = 0;   // run at requested PWM setting for the giving time
-    static const int MODE_ADC = 1;        // try to reach the request ADC setting at requested PWM setting before timeout
-    static const int MODE_TIMED_MOVE = 2; // reach ADC setting within the requested time
 
     Servo(const ServoSettings *s, const char *name, unsigned int offset);
     void print(Stream *stream, const char *szUnit);
@@ -84,10 +91,7 @@ class Servo {
 
     SetPoint *getSetPoints(int *actualCount);
     unsigned short getAdcValue(void);
-    unsigned short getAdcMinValue(void);
-    unsigned short getAdcMaxValue(void);
     unsigned short readAdc(void);
-    void resetMinMax(void);
     const char *getName(void);
 
     void setPins(int adc, int pwm, int dir, int dirPolarity=0);
@@ -102,9 +106,16 @@ class Servo {
     bool setTargetAdcValue(int i);
     bool timedMoveInit(uint32_t milliseconds);
 
-    int run(void);
+    int everyMilliSecond(void); // called every millisecond
     bool runPID(void);
-    bool setSpeedAndDirection(int speed, enum Direction_e direction);
+    int16_t getKP(void);
+    int16_t getKI(void);
+    int16_t getKD(void);
+    bool setKP(float value);
+    bool setKI(float value);
+    bool setKD(float value);
+    bool setSpeedAndDirection(int speed, int direction);
+    // bool updateTarget(void);
 
 
     SetPoint *getFirstSetPoint(void);
@@ -115,12 +126,6 @@ class Servo {
     void stopMotor(const char *szReason);
 
     unsigned int setPwmRatioMax(unsigned int max);
-    unsigned int setPwmRatioMin(unsigned int min);
-    bool setPwmScale(unsigned char scale);
-    bool setTimeoutScale(unsigned char scale);
-    unsigned char getPwmRatioMin(void){ return pwmRatioMin;};
-    unsigned char getPwmScale(void) { return pwmScale;};
-    unsigned char getTimeoutScale(void) { return timeoutScale;};
 
     void loadSettingsFromFW();
 

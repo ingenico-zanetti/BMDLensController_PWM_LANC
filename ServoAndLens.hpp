@@ -1,6 +1,8 @@
 #ifndef __SERVO_AND_LENS_HPP_INCLUDED__
 #define __SERVO_AND_LENS_HPP_INCLUDED__
 
+#include "Arduino.h"
+
 #include <assert.h>
 
 #define MAX_SET_POINTS (14) // DON'T CHANGE !!!
@@ -13,14 +15,10 @@ typedef struct {
 typedef struct {
   SetPoint setPoints[MAX_SET_POINTS];
   struct __attribute__((packed)) {
-    unsigned char pwmScale;
-    unsigned char timeoutScale;
-    unsigned char minSpeed;
-    unsigned char rfu;
-    unsigned char pidP;
-    unsigned char pidI;
-    unsigned char pidD;
-    unsigned char rfu2;
+    int16_t pidP;
+    int16_t pidI;
+    int16_t pidD;
+    int16_t rfu;
   }parameters;
 } ServoSettings;
 

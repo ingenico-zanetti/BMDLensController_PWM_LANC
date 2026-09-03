@@ -79,9 +79,9 @@ const ServoSettings zoomSettings = {
     { 0, 0}
   },
   .parameters = {
-    .pwmScale = 4,
-    .timeoutScale = 100,
-    .minSpeed = 1,
+    .pidP = 16 * 256 + 12,
+    .pidI = 0 * 256,
+    .pidD = 0 * 256,
     .rfu = 0
   }
 };
@@ -99,9 +99,9 @@ const ServoSettings irisSettings = {
     { 0, 0}
   },
   .parameters = {
-    .pwmScale = 10,
-    .timeoutScale = 32,
-    .minSpeed = 4,
+    .pidP = 16 * 256 + 18,
+    .pidI = 0 * 256,
+    .pidD = 0 * 256,
     .rfu = 0
   }
 };
@@ -124,9 +124,9 @@ const ServoSettings focusSettings = {
     { 0, 0}
   },
   .parameters = {
-    .pwmScale = 6,
-    .timeoutScale = 64,
-    .minSpeed = 4,
+    .pidP = 16 * 256 + 14,
+    .pidI = 0 * 256,
+    .pidD = 0 * 256,
     .rfu = 0
   }
 };
