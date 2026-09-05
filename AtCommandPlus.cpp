@@ -19,7 +19,7 @@ static int countComas(const char *szString, int length){
 }
 
 typedef bool (*plusSubFunction)(Stream *stream, Servo *servo, const char c, const char *szString, int comas);
-// static const char *useATW =  "(use AT&W to make the setting persistent)";
+static const char *useATW =  "(use AT&W to make the setting persistent)";
 
 static bool plusUsage(Stream *stream, Servo *servo, const char c, const char *szString, int comas){
   (void)stream;
@@ -214,6 +214,27 @@ static bool plusWrite(Stream *stream, Servo *servo, const char c, const char *sz
             raiseError = true;
           }else{
             Serial.printf("and the SetPoint is valid." "\n");
+            if(2 == numberOfComas){
+              // It's a write of a new setting for SetPoints[index]
+              // Is there a value in parameter 3 ?
+              if(values[2].count > 0){
+                // Syntax: AT+X=5.6,,1234
+                // Use the provided value for the adcValue of this SetPoint
+                raiseError = servo->setSetPoint(setPoint.setting, (unsigned short)(values[2].value));
+                if(!raiseError){
+                  stream->printf("%s: setting %d with provided adcValue %d instead of %d, %s" "\n", servo->getName(), setPoint.setting, (unsigned short)(values[2].value), setPoint.adcValue, useATW);
+                }
+              }else{
+                // Syntax: AT+X=5.6,,
+                // Use the current ADC value for the adcValue of this SetPoint
+                raiseError = servo->setSetPoint(setPoint.setting, servo->getAdcValue());
+                if(!raiseError){
+                  stream->printf("%s: setting %d with current adcValue %d instead of %d, %s" "\n", servo->getName(), setPoint.setting, servo->getAdcValue(), setPoint.adcValue, useATW);
+                }
+              }
+            }else{
+              Serial.printf("move to setting %d" "\n", setPoint.adcValue);
+            }
           }
         }
       }else{
@@ -241,7 +262,7 @@ static bool plusWrite(Stream *stream, Servo *servo, const char c, const char *sz
               Serial.printf("SpeedMode: request to stop" "\n");
             }
           }else{
-            Serial.printf("looks like an absolute ADC request to %d" "\n", uintValue);
+            Serial.printf("looks like an absolute ADC request to %d (%s)" "\n", uintValue, servo->isAdcTargetValid(uintValue) ? "Valid" : "Not Valid");
           }
         }else{
           // starts with a sign, so either delta ADC or duration
