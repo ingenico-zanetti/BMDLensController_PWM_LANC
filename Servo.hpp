@@ -5,10 +5,11 @@
 #include "ServoAndLens.hpp"
 #include "GlobalConfiguration.hpp"
 
-#define PWM_RATIO_HARD_LIMIT (0xC0)
 
 class Servo {
   public:
+    static const int PWM_RATIO_HARD_LIMIT = 0xC0; // current hardware limitation
+
     // possible mode, either through UART/CDC-ACM coammands or LANC
     static const int MODE_ADC        = 0; // move up-to a given position
     static const int MODE_DURATION   = 1; // move for a given time
@@ -76,11 +77,15 @@ class Servo {
       float minOutput;
       float maxOutput;
     } pid_context;
+
+    const char *lastErrorString;
     
   public:
 
     Servo(const ServoSettings *s, const char *name, unsigned int offset);
     void print(Stream *stream, const char *szUnit);
+    void setLastErrorString(const char *szString);
+    void printLastErrorString(Stream *stream);
     
     static char *setPointSettingToString(char *szString, SetPoint *setPoint);
     static bool stringToSetPointSetting(const char *start, int sLen, SetPoint *setPoint);
@@ -116,6 +121,9 @@ class Servo {
     bool setKD(float value);
     bool setSpeedAndDirection(int speed, int direction);
     // bool updateTarget(void);
+
+    bool programOpenLoopMove(uint32_t durationMillisecond, int direction, uint32_t pwm);
+    bool programTargetADCMove(uint16_t targetADC, uint32_t pwmSetting, uint32_t moveTimeMillisecond);
 
 
     SetPoint *getFirstSetPoint(void);

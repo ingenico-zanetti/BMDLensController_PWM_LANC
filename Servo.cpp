@@ -85,6 +85,7 @@ Servo::Servo(const ServoSettings *s, const char *name, unsigned int offset){
   pwmRatioMax = 0xC0; // 8-bit PWM, but beyond 0xC0, the behaviour is not predictable
   filter = SlidingWindow(name, 4);
   direction = Servo::DIRECTION_STOPPED;
+  lastErrorString = NULL;
 }
 
 void Servo::setPins(int adc, int pwm, int dir, int dirPolarity){
@@ -571,4 +572,35 @@ bool Servo::setKD(float value){
 
 bool Servo::updateTarget(void){
   return(false);
+}
+
+bool Servo::programOpenLoopMove(uint32_t durationMillisecond, int direction, uint32_t pwm){
+  (void)durationMillisecond;
+  (void)direction;
+  (void)pwm;
+  return(false);
+}
+
+bool Servo::programTargetADCMove(uint16_t targetADC, uint32_t pwmSetting, uint32_t moveTimeMillisecond){
+  (void)targetADC;
+  (void)pwmSetting;
+  (void)moveTimeMillisecond;
+
+  bool raiseError = false;
+
+  if(isAdcTargetValid(targetADC)){
+  }else{
+    setLastErrorString("programTargetADCMove(invalid target ADC)");
+    raiseError = true;
+  }
+  return(raiseError);
+}
+void Servo::setLastErrorString(const char *szString){
+  lastErrorString = szString;
+}
+
+void Servo::printLastErrorString(Stream *stream){
+  if((stream != NULL) && (lastErrorString != NULL)){
+    stream->printf("\r\n" "%s" "\r\n", lastErrorString);
+  }
 }

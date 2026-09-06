@@ -190,12 +190,27 @@ static bool plusWrite(Stream *stream, Servo *servo, const char c, const char *sz
     while(i < parameterCount){
       getNumericalValue(start, values + i);
       const char *comaPtr = strchr(start, ',');
-	  if(comaPtr != NULL){
-        start = (comaPtr + 1);
-	  }else{
-	    break;
-	  }
+      if(comaPtr != NULL){
+          start = (comaPtr + 1);
+      }else{
+        break;
+      }
       i++;
+    }
+    int32_t pwmSetting = -1;
+    int32_t moveTimeMillisecond = -1;
+    if(1 == numberOfComas){
+      if(values[1].count > 0){
+        if('S' == values[1].nextChar){
+          // "timed" move
+          moveTimeMillisecond = (int32_t)(1000.0 * values[1].value);
+        }else{
+          pwmSetting = (int32_t)(values[1].value);
+          if((pwmSetting < 0) || (pwmSetting > Servo::PWM_RATIO_HARD_LIMIT)){
+            return(true);
+          }
+        }
+      }
     }
     // Time to take a decision ...
     // The first value should allow to distinguish between most of the case
@@ -206,14 +221,13 @@ static bool plusWrite(Stream *stream, Servo *servo, const char c, const char *sz
         SetPoint setPoint = {0, 0};
         Serial.printf("starts with a SetPoint, ");
         if(Servo::stringToSetPointSetting(values[0].stringStart, values[0].count, &setPoint)){
-          Serial.printf("but the syntax is not correct." "\n");
-          raiseError = true;
+          servo->setLastErrorString("SetPoint the syntax is not correct.");
+          return(true);
         }else{
           if(servo->getAdcValueFromSetting(&setPoint)){
-            Serial.printf("but the SetPoint is not valid." "\n");
-            raiseError = true;
+            servo->setLastErrorString("SetPoint not valid.");
+            return(true);
           }else{
-            Serial.printf("and the SetPoint is valid." "\n");
             if(2 == numberOfComas){
               // It's a write of a new setting for SetPoints[index]
               // Is there a value in parameter 3 ?
@@ -233,7 +247,7 @@ static bool plusWrite(Stream *stream, Servo *servo, const char c, const char *sz
                 }
               }
             }else{
-              Serial.printf("move to setting %d => ADC value %d" "\n", setPoint.setting, setPoint.adcValue);
+              servo->programTargetADCMove(setPoint.adcValue, pwmSetting, moveTimeMillisecond);
             }
           }
         }
@@ -244,27 +258,28 @@ static bool plusWrite(Stream *stream, Servo *servo, const char c, const char *sz
           // Absolute value
           // Is there a sign after the value
           char dirChar = values[0].nextChar;
-          int signAfter = 0;
+          int signAfter = Servo::DIRECTION_STOPPED;
           if('-' == dirChar){
-            signAfter = -1;
+            signAfter = Servo::DIRECTION_BACKWARD;
           }
           if('+' == dirChar){
-            signAfter = +1;
+            signAfter = Servo::DIRECTION_FORWARD;
           }
-          if(0 != signAfter){
+          if(Servo::DIRECTION_STOPPED != signAfter){
             // Syntax: AT+X=<speed>{+-}
             if((0 < uintValue) && (uintValue <= (uint32_t)8)){
               Serial.printf("Request speed %d with direction %+d" "\n", uintValue, signAfter);
             }else{
               raiseError = true;
-              Serial.printf("Request invalid speed %d with direction %+d" "\n", uintValue, signAfter);
+              servo->setLastErrorString("invalid speed, must be [1 .. 8]");
             }
           }else{
             if(0 != uintValue){
               // Syntax: AT+X=<target adc value>
-              bool validTarget = servo->isAdcTargetValid(uintValue);
-              Serial.printf("looks like an absolute ADC request to %d (%s)" "\n", uintValue, validTarget ? "Valid" : "Not Valid");
-              raiseError = !validTarget;
+              // Syntax: AT+X=<target adc value>,123
+              // Syntax: AT+X=<target adc value>,12.3s
+              raiseError = servo->programTargetADCMove(uintValue, pwmSetting, moveTimeMillisecond);
+              
             }else{
               // Syntax: AT+X=0
               Serial.printf("SpeedMode: request to stop" "\n");
@@ -274,133 +289,30 @@ static bool plusWrite(Stream *stream, Servo *servo, const char c, const char *sz
         }else{
           // starts with a sign, so either delta ADC or duration
           if('M' == values[0].nextChar){
-            // millisecond move request
-            if(0 == numberOfComas){
-              // Syntax: AT+X=1234m
-              Serial.printf("open-loop move for %d ms into direction %+d" "\n", uintValue, values[0].sign);
-            }else{
-              // Syntax: AT+X=1234m,PWM
-              if(values[1].count > 0){
-                int pwm = (int)values[1].value;
-                Serial.printf("open-loop move for %d ms into direction %+d with PWM setting %d" "\n", uintValue, values[0].sign, pwm);
-              }else{
-                raiseError = true;
-                Serial.printf("open-loop move for %d ms into direction %+d but PWM setting KO" "\n", uintValue, values[0].sign);
-              }
-            }
+            // open-loop millisecond move request
+            // Syntax: AT+X=1234M
+            // Syntax: AT+X=1234M,123
+            servo->programOpenLoopMove(uintValue, values[0].sign, pwmSetting);
           }else{
+            // Syntax: AT+X=+34
+            // Syntax: AT+X=+34,123
+            // Syntax: AT+X=+34,12.3S
             int targetADC = (int)servo->getAdcValue() + values[0].sign * uintValue;
-            Serial.printf("deltaADC move for %d steps into direction %+d => ADC target=%d (%s)" "\n", uintValue, values[0].sign, targetADC, servo->isAdcTargetValid(targetADC) ? "Valid" : "Not Valid");
-          }
-        }
-      }
-    }else{
-      raiseError = true;
-      Serial.printf("no number parsed" "\n");
-    }
-  }
-    
-
-
-#if 0
-
-    bool parameterIsSetting = false;
-    SetPoint setPoint = {0, 0};
-    if(hasFirstValue){
-      if('M' == *end){
-        mode = Servo::MODE_ADC;
-      }else{
-        int l = (end - nptr);
-        const char *dot = (const char *)memchr(nptr, '.', l);
-        if(NULL != dot){
-          if(Servo::stringToSetPointSetting(nptr, l, &setPoint)){
-            raiseError = true;
-          }else{
-            if(servo->getAdcValueFromSetting(&setPoint)){
-              raiseError = true;
-            }else{
-              parameterIsSetting = true;
+            if(servo->isAdcTargetValid(targetADC)){
+              servo->programTargetADCMove(targetADC, pwmSetting, moveTimeMillisecond);
             }
           }
         }
       }
     }else{
-      if(',' != nptr[0]){
-        // First parameter is garbage: it should be either a valid number or empty
-        raiseError = true;
-      }
-    }
-    if(!raiseError){
-      if(numberOfComas >= 1){
-        char *p = strchr(szString + offset, ',');
-        nptr = p + 1;
-        secondValue = strtof(nptr, &end);
-        hasSecondValue = (end != nptr);
-      }
-      if(hasSecondValue){
-        if('S' == *end){
-          // v3.0.1+: TIMED MOVE
-          mode = Servo::MODE_TIMED_MOVE;
-        }else{
-          unsigned int max = (unsigned int)secondValue;
-          if((0 < max) && (max <= PWM_RATIO_HARD_LIMIT)){
-            servo->setPwmRatioMax(max);
-          }else{
-            raiseError = true;
-          }
-        }
-      }
-    }
-    if(!raiseError && parameterIsSetting && (2 == numberOfComas)){
-      // AT+I=5.6,,     set the adcValue for setting 5.6 to the current adcValue for iris
-      // AT+I=5.6,,2300 set the adcValue for setting 5.6 to 2300
-      // AT&W is still required for the setting to be stored in Flash
-      char *lastComa = strrchr(szString, ',');
-      nptr = lastComa + 1;
-      if('\0' == lastComa[1]){
-        raiseError = servo->setSetPoint(setPoint.setting, servo->getAdcValue());
-        stream->printf("%s: setting %d with current adcValue %d instead of %d => %d %s" "\n", servo->getName(), setPoint.setting, servo->getAdcValue(), setPoint.adcValue, raiseError, useATW);
+      if(-1 != pwmSetting){
+        Serial.printf("pwmSetting=%d" "\n", pwmSetting);
       }else{
-        nptr = lastComa + 1;
-        float thirdValue = strtof(nptr, &end);
-        if(end != nptr){
-          raiseError = servo->setSetPoint(setPoint.setting, (unsigned short)thirdValue);
-          stream->printf("%s: setting %d with provided adcValue %d instead of %d => %d %s" "\n", servo->getName(), setPoint.setting, (unsigned short)thirdValue, setPoint.adcValue, raiseError, useATW);
-        }else{
-          raiseError = true;
-        }
-      }
-    }else{
-      if(!raiseError && hasFirstValue){
-        if(sign != 0){
-          if(Servo::MODE_DURATION == mode){
-            int ms = (int)firstValue;
-            // Serial.printf("%s(%s): duration move for %s: %d ms" "\n", __func__, szString, servo->getName(), ms);
-            servo->setDirection(sign == +1);
-            raiseError = servo->setTimeMs(ms);
-          }else{
-            int delta = sign * (int)firstValue;
-            // Serial.printf("%s(%s): delta ADC mode for %s: %d step(s)" "\n", __func__, szString, servo->getName(), delta);
-            raiseError = servo->setDeltaAdc(delta);
-          }
-        }else{
-          if(parameterIsSetting){
-            // Serial.printf("%s(%s): setting mode for %s: %d" "\n", __func__, szString, servo->getName(), setPoint.setting);
-            raiseError = servo->setTargetAdcValue(setPoint.adcValue);
-          }else{
-            int position = (int)firstValue;
-            // Serial.printf("%s(%s): absolute ADC mode for %s: %d" "\n", __func__, szString, servo->getName(), position);
-            raiseError = servo->setTargetAdcValue(position);
-          }
-        }
-        if(!raiseError && Servo::MODE_TIMED_MOVE == mode){
-          uint32_t duration = (uint32_t)(secondValue* 1000.0f);
-          servo->timedMoveInit(duration);
-        }
+        raiseError = true;
+        Serial.printf("missing first number or pwmSetting" "\n");
       }
     }
   }
-#endif
   return(raiseError);
 }
 
@@ -433,6 +345,9 @@ bool handlePlus(Stream *stream, const char *szString, int length) {
     servo = getServo(axis);
     if(servo){
       raiseError = sub(stream, servo, axis, szString, comas);
+      if(raiseError){
+        servo->printLastErrorString(stream);
+      }
     }else if(('X' == axis) && (plusRead == sub)){
       raiseError = false;
       extender.printState(stream);
