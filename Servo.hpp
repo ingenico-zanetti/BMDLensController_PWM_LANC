@@ -124,6 +124,7 @@ class Servo {
     bool isSettingValid(unsigned int setting);
 
     void stopMotor(const char *szReason);
+    void reset(const char *szReason);
 
     unsigned int setPwmRatioMax(unsigned int max);
 

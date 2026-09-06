@@ -331,12 +331,19 @@ bool Servo::timedMoveInit(uint32_t milliseconds){
 
 void Servo::stopMotor(const char *szReason){
   (void)szReason;
-  // Serial.printf("Stop motor %s on %s" "\n", szName, szReason);
+  Serial.printf("Stop motor %s on %s" "\n", szName, szReason);
   pwmRatio = 0;
   direction = DIRECTION_STOPPED;
   analogWrite(pwmPin, 0);
   digitalWrite(dirPin, 0);
-  // Serial.printf("%s:%4d" "\n", getName(), getAdcValue());
+}
+
+void Servo::reset(const char *szReason){
+  if(szReason != NULL){
+    stopMotor(szReason);
+  }else{
+    stopMotor("reset");
+  }
 }
 
 int Servo::everyMilliSecond(void){

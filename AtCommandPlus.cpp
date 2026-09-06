@@ -233,7 +233,7 @@ static bool plusWrite(Stream *stream, Servo *servo, const char c, const char *sz
                 }
               }
             }else{
-              Serial.printf("move to setting %d" "\n", setPoint.adcValue);
+              Serial.printf("move to setting %d => ADC value %d" "\n", setPoint.setting, setPoint.adcValue);
             }
           }
         }
@@ -242,35 +242,55 @@ static bool plusWrite(Stream *stream, Servo *servo, const char c, const char *sz
         // Do we have a sign ?
         if(0 == values[0].sign){
           // Absolute value
-          if(uintValue <= (uint32_t)8){
-            if(0 != uintValue){
-              char dirChar = values[0].nextChar;
-              int sign = 0;
-              if('-' == dirChar){
-                sign = -1;
-              }
-              if('+' == dirChar){
-                sign = +1;
-              }
-              if(0 == sign){
-                raiseError = true;
-                Serial.printf("SpeedMode: request %d but no direction" "\n", uintValue);
-              }else{
-                Serial.printf("SpeedMode: request %d with direction %+d" "\n", uintValue, sign);
-              }
+          // Is there a sign after the value
+          char dirChar = values[0].nextChar;
+          int signAfter = 0;
+          if('-' == dirChar){
+            signAfter = -1;
+          }
+          if('+' == dirChar){
+            signAfter = +1;
+          }
+          if(0 != signAfter){
+            // Syntax: AT+X=<speed>{+-}
+            if((0 < uintValue) && (uintValue <= (uint32_t)8)){
+              Serial.printf("Request speed %d with direction %+d" "\n", uintValue, signAfter);
             }else{
-              Serial.printf("SpeedMode: request to stop" "\n");
+              raiseError = true;
+              Serial.printf("Request invalid speed %d with direction %+d" "\n", uintValue, signAfter);
             }
           }else{
-            Serial.printf("looks like an absolute ADC request to %d (%s)" "\n", uintValue, servo->isAdcTargetValid(uintValue) ? "Valid" : "Not Valid");
+            if(0 != uintValue){
+              // Syntax: AT+X=<target adc value>
+              bool validTarget = servo->isAdcTargetValid(uintValue);
+              Serial.printf("looks like an absolute ADC request to %d (%s)" "\n", uintValue, validTarget ? "Valid" : "Not Valid");
+              raiseError = !validTarget;
+            }else{
+              // Syntax: AT+X=0
+              Serial.printf("SpeedMode: request to stop" "\n");
+              servo->reset("Speed=0");
+            }
           }
         }else{
           // starts with a sign, so either delta ADC or duration
           if('M' == values[0].nextChar){
             // millisecond move request
-            Serial.printf("open-loop move for %d ms into direction %+d" "\n", uintValue, values[0].sign);
+            if(0 == numberOfComas){
+              // Syntax: AT+X=1234m
+              Serial.printf("open-loop move for %d ms into direction %+d" "\n", uintValue, values[0].sign);
+            }else{
+              // Syntax: AT+X=1234m,PWM
+              if(values[1].count > 0){
+                int pwm = (int)values[1].value;
+                Serial.printf("open-loop move for %d ms into direction %+d with PWM setting %d" "\n", uintValue, values[0].sign, pwm);
+              }else{
+                raiseError = true;
+                Serial.printf("open-loop move for %d ms into direction %+d but PWM setting KO" "\n", uintValue, values[0].sign);
+              }
+            }
           }else{
-            Serial.printf("deltaADC move for %d steps into direction %+d" "\n", uintValue, values[0].sign);
+            int targetADC = (int)servo->getAdcValue() + values[0].sign * uintValue;
+            Serial.printf("deltaADC move for %d steps into direction %+d => ADC target=%d (%s)" "\n", uintValue, values[0].sign, targetADC, servo->isAdcTargetValid(targetADC) ? "Valid" : "Not Valid");
           }
         }
       }
