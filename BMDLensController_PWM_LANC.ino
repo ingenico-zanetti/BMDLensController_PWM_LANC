@@ -94,7 +94,6 @@ void SystemClock_Config(void)
 #define LancUartTx (PA2) // UART2_TX / BluePill.PIN07
 
 int ledStatus;
-uint32_t oldSeconds;
 uint32_t oldMillis;
 uint32_t oldMicros;
 uint32_t oldQuarter;
@@ -153,7 +152,6 @@ void setup() {
   oldMillis = millis();
   oldMicros = micros();
   oldQuarter = oldMillis / 250;
-  oldSeconds = oldMillis / 1000;
   oldFrame = oldMillis / 16; // around 60 fps
 
   analyzerUSB.setStream(&Serial);
@@ -424,10 +422,6 @@ void loop() {
     oldQuarter = newQuarter;
     ledStatus = (HIGH == ledStatus) ? LOW : HIGH;
     digitalWrite(LED_BUILTIN, ledStatus);
-  }
-  uint32_t newSeconds = newMillis / 4;
-  if(newSeconds != oldSeconds){
-    oldSeconds = newSeconds;
   }
 }
 
