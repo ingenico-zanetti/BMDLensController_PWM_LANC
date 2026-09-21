@@ -19,7 +19,7 @@ const ServoSettings zoomSettings = {
     .pwmScale = 4,
     .timeoutScale = 128,
     .minSpeed = 3,
-    .rfu = 0
+    .flags = 0
   }
 };
 
@@ -39,7 +39,7 @@ const ServoSettings irisSettings = {
     .pwmScale = 10,
     .timeoutScale = 64,
     .minSpeed = 1,
-    .rfu = 0
+    .flags = 0
   }
 };
 
@@ -60,7 +60,7 @@ const ServoSettings focusSettings = {
     .pwmScale = 6,
     .timeoutScale = 128,
     .minSpeed = 2,
-    .rfu = 0
+    .flags = 0
   }
 };
 
@@ -71,65 +71,66 @@ const char *szLensName = "FUJINON HA18x7.6BEMD-M1B";
 
 const ServoSettings zoomSettings = {
   .setPoints = {
-    { .setting =   76, .adcValue = 2997 },
-    { .setting =  150, .adcValue = 2619 },
-    { .setting =  300, .adcValue = 2332 },
-    { .setting =  600, .adcValue = 2049 },
-    { .setting = 1370, .adcValue = 1708 },
+    { .setting =   76, .adcValue = 3000 },
+    { .setting =  150, .adcValue = 2493 },
+    { .setting =  300, .adcValue = 2167 },
+    { .setting =  600, .adcValue = 1894 },
+    { .setting = 1370, .adcValue = 1582 },
     { 0, 0}
   },
   .parameters = {
     .pidP = 16 * 256 + 12,
     .pidI = 0 * 256,
     .pidD = 0 * 256,
-    .rfu = 0
+    .flags = 0
   }
 };
 
 
 const ServoSettings irisSettings = {
   .setPoints = {
-    { .setting =  18, .adcValue = 2906},
-    { .setting =  28, .adcValue = 2595},
-    { .setting =  40, .adcValue = 2291},
-    { .setting =  56, .adcValue = 2052},
-    { .setting =  80, .adcValue = 1823},
-    { .setting = 110, .adcValue = 1611},
-    { .setting = 160, .adcValue = 1424},
+    { .setting =  18, .adcValue = 1212},
+    { .setting =  28, .adcValue = 1472},
+    { .setting =  40, .adcValue = 1718},
+    { .setting =  56, .adcValue = 1931},
+    { .setting =  80, .adcValue = 2135},
+    { .setting = 110, .adcValue = 2394},
+    { .setting = 160, .adcValue = 2614},
     { 0, 0}
   },
   .parameters = {
     .pidP = 16 * 256 + 18,
     .pidI = 0 * 256,
     .pidD = 0 * 256,
-    .rfu = 0
+    .flags = 0
   }
 };
 
 const ServoSettings focusSettings = {
   .setPoints = {
-    { .setting =    6, .adcValue = 1202},
-    { .setting =    7, .adcValue = 1377},
-    { .setting =    8, .adcValue = 1572},
-    { .setting =    9, .adcValue = 1717},
-    { .setting =   10, .adcValue = 1852},
-    { .setting =   12, .adcValue = 1997},
-    { .setting =   15, .adcValue = 2156},
-    { .setting =   20, .adcValue = 2314},
-    { .setting =   30, .adcValue = 2494},
-    { .setting =   50, .adcValue = 2623},
-    { .setting =  100, .adcValue = 2713}, // actually 30 feet
-    { .setting = 9990, .adcValue = 2829}, // infinity
-    { .setting = 9999, .adcValue = 2863}, // and beyond
+    { .setting =    6, .adcValue = 1174},
+    { .setting =    7, .adcValue = 1324},
+    { .setting =    8, .adcValue = 1489},
+    { .setting =    9, .adcValue = 1619},
+    { .setting =   10, .adcValue = 1725},
+    { .setting =   12, .adcValue = 1864},
+    { .setting =   15, .adcValue = 2007},
+    { .setting =   20, .adcValue = 2172},
+    { .setting =   30, .adcValue = 2353},
+    { .setting =   50, .adcValue = 2512},
+    { .setting =  100, .adcValue = 2615}, // actually 30 feet
+    { .setting = 9990, .adcValue = 2768}, // infinity
+    { .setting = 9999, .adcValue = 2818}, // and beyond
     { 0, 0}
   },
   .parameters = {
-    .pidP = 16 * 256 + 14,
-    .pidI = 0 * 256,
-    .pidD = 0 * 256,
-    .rfu = 0
+    .pidP = 16 * 256 + 130,
+    .pidI = 8 * 256,
+    .pidD = 4 * 256,
+    .flags = FLAG_POSITIVE_DIRECTION
   }
 };
+#warning "__HA18x7POINT6BEMD_M1B__ selected"
 
 #elif defined(__S20X6POINT4BMD_DSD__)
 
@@ -148,7 +149,7 @@ const ServoSettings zoomSettings = {
     .pwmScale = 4,
     .timeoutScale = 100,
     .minSpeed = 1,
-    .rfu = 0
+    .flags = 0
   }
 };
 
@@ -169,7 +170,7 @@ const ServoSettings irisSettings = {
     .pwmScale = 10,
     .timeoutScale = 32,
     .minSpeed = 4,
-    .rfu = 0
+    .flags = 0
   }
 };
 
@@ -190,7 +191,7 @@ const ServoSettings focusSettings = {
     .pwmScale = 6,
     .timeoutScale = 64,
     .minSpeed = 4,
-    .rfu = 0
+    .flags = FLAG_POSITIVE_DIRECTION
   }
 };
 
@@ -213,7 +214,7 @@ const ServoSettings zoomSettings = {
     .pwmScale = 4,
     .timeoutScale = 100,
     .minSpeed = 1,
-    .rfu = 0
+    .flags = 0
   }
 };
 
@@ -233,7 +234,7 @@ const ServoSettings irisSettings = {
     .pwmScale = 4,
     .timeoutScale = 32,
     .minSpeed = 2,
-    .rfu = 0
+    .flags = 0
   }
 };
 
@@ -254,7 +255,7 @@ const ServoSettings focusSettings = {
     .pwmScale = 4,
     .timeoutScale = 64,
     .minSpeed = 3,
-    .rfu = 0
+    .flags = 0
   }
 };
 
@@ -274,7 +275,7 @@ const ServoSettings zoomSettings = {
     .pwmScale = 4,
     .timeoutScale = 100,
     .minSpeed = 1,
-    .rfu = 0
+    .flags = 0
   }
 };
 
@@ -293,7 +294,7 @@ const ServoSettings irisSettings = {
     .pwmScale = 4,
     .timeoutScale = 32,
     .minSpeed = 2,
-    .rfu = 0
+    .flags = 0
   }
 };
 
@@ -314,7 +315,7 @@ const ServoSettings focusSettings = {
     .pwmScale = 6,
     .timeoutScale = 64,
     .minSpeed = 4,
-    .rfu = 0
+    .flags = 0
   }
 };
 
@@ -335,7 +336,7 @@ const ServoSettings zoomSettings = {
     .pwmScale = 4,
     .timeoutScale = 100,
     .minSpeed = 1,
-    .rfu = 0
+    .flags = 0
   }
 };
 
@@ -356,7 +357,7 @@ const ServoSettings irisSettings = {
     .pwmScale = 10,
     .timeoutScale = 32,
     .minSpeed = 4,
-    .rfu = 0
+    .flags = 0
   }
 };
 
@@ -377,7 +378,7 @@ const ServoSettings focusSettings = {
     .pwmScale = 6,
     .timeoutScale = 64,
     .minSpeed = 4,
-    .rfu = 0
+    .flags = 0
   }
 };
 
@@ -398,7 +399,7 @@ const ServoSettings zoomSettings = {
     .pwmScale = 4,
     .timeoutScale = 128,
     .minSpeed = 3,
-    .rfu = 0
+    .flags = 0
   }
 };
 
@@ -419,7 +420,7 @@ const ServoSettings irisSettings = {
     .pwmScale = 10,
     .timeoutScale = 64,
     .minSpeed = 1,
-    .rfu = 0
+    .flags = 0
   }
 };
 
@@ -443,7 +444,7 @@ const ServoSettings focusSettings = {
     .pwmScale = 6,
     .timeoutScale = 128,
     .minSpeed = 2,
-    .rfu = 0
+    .flags = 0
   }
 };
 
@@ -464,7 +465,7 @@ const ServoSettings zoomSettings = {
     .pwmScale = 4,
     .timeoutScale = 128,
     .minSpeed = 3,
-    .rfu = 0
+    .flags = 0
   }
 };
 
@@ -484,7 +485,7 @@ const ServoSettings irisSettings = {
     .pwmScale = 10,
     .timeoutScale = 64,
     .minSpeed = 1,
-    .rfu = 0
+    .flags = 0
   }
 };
 
@@ -504,7 +505,7 @@ const ServoSettings focusSettings = {
     .pwmScale = 6,
     .timeoutScale = 128,
     .minSpeed = 2,
-    .rfu = 0
+    .flags = 0
   }
 };
 
