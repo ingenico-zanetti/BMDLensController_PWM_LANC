@@ -6,6 +6,7 @@
 bool errorCallback(Stream *stream, const char *szString, int length){
   (void)szString;
   (void)length;
+  (void)stream;
   return(true);
 }
 
