@@ -8,13 +8,14 @@
 
 class Servo {
   public:
-    static const int PWM_RATIO_HARD_LIMIT = 0xC0; // current hardware limitation
+    static const int PWM_RATIO_HARD_LIMIT = 0xC0; // 8-bit PWM, but beyond 0xC0, the hardware behaviour is not predictable
 
     // possible mode, either through UART/CDC-ACM coammands or LANC
-    static const int MODE_ADC        = 0; // move up-to a given position
-    static const int MODE_DURATION   = 1; // move for a given time
-    static const int MODE_TIMED_MOVE = 2; // move to a position in a given time
-    static const int MODE_SPEED      = 3; // move at as constant as possible speed 
+    static const int MOVE_MODE_NONE       = -1; // no move requested
+    static const int MOVE_MODE_ADC        = 0; // move up-to a given position
+    static const int MOVE_MODE_DURATION   = 1; // move for a given time
+    static const int MOVE_MODE_TIMED_MOVE = 2; // move to a position in a given time
+    static const int MOVE_MODE_SPEED      = 3; // move at a as constant as possible speed 
 
     // cuurrent direction of rotation
     static const int DIRECTION_BACKWARD = -1;
@@ -23,12 +24,12 @@ class Servo {
 
   private:
     SetPoint setPoints[MAX_SET_POINTS];
+    uint16_t flags;
     int setPointCount;
-    unsigned short int adcValue;    // as read from the ADC converter and smoothed by the sliding window filter
-    // unsigned short int adcMinValue; // for statistical purpose only ; might be removed, as you can now print the sliding window
-    // unsigned short int adcMaxValue; // for statistical purpose only ; might be removed, as you can now print the sliding window
+    uint16_t adcValue;    // as read from the ADC converter and smoothed by the sliding window filter
+    uint16_t adcLowestValue; // lowest value from the settings
+    uint16_t adcHighestValue; // highest value from the settings
     const char *szName;
-    int remainingTimeMs;
     int direction;
     int adcPin;
     int pwmPin;
@@ -37,8 +38,11 @@ class Servo {
     int mode;
     SlidingWindow filter;
     unsigned int targetAdcValue;
-    unsigned int pwmRatio;
-    unsigned int pwmRatioMax;
+    struct {
+      uint32_t toUse;
+      uint32_t programmed;
+      uint32_t max;
+    } pwmRatio;
 
     bool updateTarget(void);
 
@@ -49,6 +53,8 @@ class Servo {
     unsigned int eepromOffset;
     const ServoSettings *servoSettingsFromFW;
     void loadSettingsFromMemory(const ServoSettings *settings);
+    void updateBoundaries(void);
+
 
     struct {
       uint32_t startADC;           // where we started from
@@ -77,6 +83,11 @@ class Servo {
       float minOutput;
       float maxOutput;
     } pid_context;
+
+    struct {
+      uint32_t remainingTimeMs;
+      // int direction;
+    } open_loop_context;
 
     const char *lastErrorString;
     
@@ -122,14 +133,14 @@ class Servo {
     bool setSpeedAndDirection(int speed, int direction);
     // bool updateTarget(void);
 
-    bool programOpenLoopMove(uint32_t durationMillisecond, int direction, uint32_t pwm);
+    bool programOpenLoopMove(uint32_t durationMillisecond, int direction, int32_t pwm);
     bool programTargetADCMove(uint16_t targetADC, uint32_t pwmSetting, uint32_t moveTimeMillisecond);
 
 
     SetPoint *getFirstSetPoint(void);
     SetPoint *getLastSetPoint(void);
-    bool isAdcTargetValid(unsigned int adcValue);
-    bool isSettingValid(unsigned int setting);
+    bool isAdcTargetValid(uint16_t adcValue);
+    bool isSettingValid(uint16_t setting);
 
     void stopMotor(const char *szReason);
     void reset(const char *szReason);
