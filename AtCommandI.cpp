@@ -39,11 +39,11 @@ bool handleATI(Stream *stream, const char *szString, int length) {
         stream->printf("%s:" "\n", zoomServo.getName());
         zoomServo.print(stream, "mm");
         delay(100);
-        stream->printf("%s:" "\n", focusServo.getName());
-        focusServo.print(stream, "m");
-        delay(100);
         stream->printf("%s:" "\n", irisServo.getName());
         irisServo.print(stream, "");
+        delay(100);
+        stream->printf("%s:" "\n", focusServo.getName());
+        focusServo.print(stream, "m");
         delay(100);
       break;
   }
