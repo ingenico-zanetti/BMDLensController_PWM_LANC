@@ -7,6 +7,8 @@
 
 #define MAX_SET_POINTS (14) // DON'T CHANGE !!!
 
+#define FLAG_POSITIVE_DIRECTION (1 << 0)  // When the direction pin is HIGH, ADC is expected to increase
+
 typedef struct {
     unsigned short int setting;  // 10 times the actual value: 6.4 is stored as 64, 999.9 is stored as 9999 and the max possible represented value is 6553.5 (meter, millimeter, diaphragm, ...)
     unsigned short int adcValue;
@@ -18,7 +20,7 @@ typedef struct {
     int16_t pidP;
     int16_t pidI;
     int16_t pidD;
-    int16_t rfu;
+    uint16_t flags;
   }parameters;
 } ServoSettings;
 
