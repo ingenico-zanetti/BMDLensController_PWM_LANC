@@ -172,9 +172,10 @@ void setup() {
   zoomServo.setPins(ZoomADC, ZoomPWM, ZoomDIR);
   irisServo.setPins(IrisADC, IrisPWM, IrisDIR);
 
-  focusServo.setMode(Servo::MODE_ADC);
-  zoomServo.setMode(Servo::MODE_ADC);
-  irisServo.setMode(Servo::MODE_ADC);
+  focusServo.setMode(Servo::MOVE_MODE_NONE);
+  zoomServo.setMode(Servo::MOVE_MODE_NONE);
+  irisServo.setMode(Servo::MOVE_MODE_NONE);
+  irisServo.setPwmRatioMax(64);
 
   powerPresent = (zoomServo.getAdcValue() > 1100);
 
@@ -418,15 +419,15 @@ void loop() {
       }
     }
   }
-  uint32_t newSeconds = newMillis / 1000;
-  if(newSeconds != oldSeconds){
-    oldSeconds = newSeconds;
-  }
   uint32_t newQuarter = newMillis / 250;
   if(newQuarter != oldQuarter){
     oldQuarter = newQuarter;
     ledStatus = (HIGH == ledStatus) ? LOW : HIGH;
     digitalWrite(LED_BUILTIN, ledStatus);
+  }
+  uint32_t newSeconds = newMillis / 4;
+  if(newSeconds != oldSeconds){
+    oldSeconds = newSeconds;
   }
 }
 
