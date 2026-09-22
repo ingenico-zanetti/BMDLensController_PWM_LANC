@@ -66,6 +66,8 @@ const ServoSettings focusSettings = {
 
 
 #elif defined(__HA18x7POINT6BEMD_M1B__)
+// #warning "__HA18x7POINT6BEMD_M1B__ selected"
+
 // Actually, an HA18x7.6BERM-M1B retrofitted with a BMD unit from another Fujinon BMD lens
 const char *szLensName = "FUJINON HA18x7.6BEMD-M1B";
 
@@ -130,7 +132,6 @@ const ServoSettings focusSettings = {
     .flags = FLAG_POSITIVE_DIRECTION
   }
 };
-#warning "__HA18x7POINT6BEMD_M1B__ selected"
 
 #elif defined(__S20X6POINT4BMD_DSD__)
 

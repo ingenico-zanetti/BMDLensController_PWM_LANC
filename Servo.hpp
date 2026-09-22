@@ -5,6 +5,53 @@
 #include "ServoAndLens.hpp"
 #include "GlobalConfiguration.hpp"
 
+class PIDController {
+public:
+    float kP, kI, kD;
+    float prevError;
+    float integral;
+    float minOutput, maxOutput;
+    float setpoint;
+
+public:
+    PIDController(): prevError(0.0f), integral(0.0f), minOutput(0.0f), maxOutput(0.0f) {}
+
+    float compute(float currentVal, float dt) {
+        if (dt <= 0.0f) return 0.0f;
+
+        // 1. Calculate Error
+        float error = setpoint - currentVal;
+
+        // 2. Proportional Term
+        float pOut = kP * error;
+
+        // 3. Integral Term (with clamping to prevent Windup)
+        integral += error * dt;
+        float iOut = kI * integral;
+
+        // 4. Derivative Term (rate of change)
+        float derivative = (error - prevError) / dt;
+        float dOut = kI * derivative;
+
+        // 5. Total Output
+        float output = pOut + iOut + dOut;
+
+        // Clamp Output to Actuator Limits
+        if (output > maxOutput) {
+            output = maxOutput;
+        } else if (output < minOutput) {
+            output = minOutput;
+        }
+
+        prevError = error;
+        return output;
+    }
+
+    void reset() {
+        prevError = 0.0f;
+        integral = 0.0f;
+    }
+};
 
 class Servo {
   public:
@@ -74,22 +121,12 @@ class Servo {
     } target_context;
 
     struct {
-      float kP;
-      float kI;
-      float kD;
-      float previousError;
-      float errorIntegral;
-      float dt;
-      float minOutput;
-      float maxOutput;
-    } pid_context;
-
-    struct {
       uint32_t remainingTimeMs;
       // int direction;
     } open_loop_context;
 
     const char *lastErrorString;
+    PIDController pid;
     
   public:
 

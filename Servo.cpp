@@ -28,6 +28,8 @@ Servo::Servo(const ServoSettings *s, const char *name, unsigned int offset){
   mode = MOVE_MODE_NONE;
   open_loop_context.remainingTimeMs = 0;
   lastErrorString = NULL;
+  pid.minOutput = -(float)PWM_RATIO_HARD_LIMIT;
+  pid.maxOutput = +(float)PWM_RATIO_HARD_LIMIT;
 }
 
 void Servo::setPins(int adc, int pwm, int dir, int dirPolarity){
@@ -85,9 +87,9 @@ void Servo::loadSettingsFromMemory(const ServoSettings *settings){
     setPoints[setPointCount] = settings->setPoints[setPointCount];
     setPointCount++;
   }
-  pid_context.kP = (float)(settings->parameters.pidP / 256.0);
-  pid_context.kI = (float)(settings->parameters.pidI / 256.0);
-  pid_context.kD = (float)(settings->parameters.pidD / 256.0);
+  pid.kP = (float)(settings->parameters.pidP / 256.0);
+  pid.kI = (float)(settings->parameters.pidI / 256.0);
+  pid.kD = (float)(settings->parameters.pidD / 256.0);
   flags = settings->parameters.flags;
   updateBoundaries();
 }
@@ -141,11 +143,11 @@ void Servo::print(Stream *stream, const char *szUnit){
   stream->printf("ADC range=[%d .. %d]" "\n", adcLowestValue, adcHighestValue);
   char floatString[32];
   stream->printf("parameters={.kP=");
-  dtostrf(pid_context.kP, 6, 3, floatString);
+  dtostrf(pid.kP, 6, 3, floatString);
   stream->printf("%s, kI=", floatString);
-  dtostrf(pid_context.kI, 6, 3, floatString);
+  dtostrf(pid.kI, 6, 3, floatString);
   stream->printf("%s, kD=", floatString);
-  dtostrf(pid_context.kD, 6, 3, floatString);
+  dtostrf(pid.kD, 6, 3, floatString);
   stream->printf("%s, flags=0x%X}" "\n", floatString, flags);
   filter.print(stream);
 }
@@ -586,15 +588,15 @@ bool Servo::setSpeedAndDirection(int speed, int direction){
 }
 
 int16_t Servo::getKP(void){
-  return((int16_t)(pid_context.kP * 256.0));
+  return((int16_t)(pid.kP * 256.0));
 }
 
 int16_t Servo::getKI(void){
-  return((int16_t)(pid_context.kI * 256.0));
+  return((int16_t)(pid.kI * 256.0));
 }
 
 int16_t Servo::getKD(void){
-  return((int16_t)(pid_context.kD * 256.0));
+  return((int16_t)(pid.kD * 256.0));
 }
 
 static bool isValidPIDParameterValue(float value){
@@ -604,7 +606,7 @@ static bool isValidPIDParameterValue(float value){
 bool Servo::setKP(float value){
   bool raiseError = true;
   if(isValidPIDParameterValue(value)){
-    pid_context.kP = value;
+    pid.kP = value;
     raiseError = false;
   }
   return(raiseError);
@@ -613,7 +615,7 @@ bool Servo::setKP(float value){
 bool Servo::setKI(float value){
   bool raiseError = true;
   if(isValidPIDParameterValue(value)){
-    pid_context.kI = value;
+    pid.kI = value;
     raiseError = false;
   }
   return(raiseError);
@@ -622,7 +624,7 @@ bool Servo::setKI(float value){
 bool Servo::setKD(float value){
   bool raiseError = true;
   if(isValidPIDParameterValue(value)){
-    pid_context.kD = value;
+    pid.kD = value;
     raiseError = false;
   }
   return(raiseError);
@@ -633,10 +635,12 @@ bool Servo::updateTarget(void){
 }
 
 bool Servo::programOpenLoopMove(uint32_t durationMillisecond, int direction, int32_t pwm){
+  #if 0
   (void)durationMillisecond;
   (void)direction;
   (void)pwm;
-  reset("new move");
+  #endif
+  reset("new open-loop move");
   bool raiseError = true;
   if(durationMillisecond > 0){
     mode = MOVE_MODE_DURATION;
@@ -666,6 +670,13 @@ bool Servo::programTargetADCMove(uint16_t targetADC, uint32_t pwmSetting, uint32
   bool raiseError = false;
 
   if(isAdcTargetValid(targetADC)){
+    reset("new target-ADC move");
+    pid.reset();
+    mode = MOVE_MODE_ADC;
+    pid.setpoint = (float)targetADC;
+    float currentADCFloat = (float)getAdcValue();
+    float pidOutput = pid.compute(currentADCFloat, 0.001f);
+    (void)pidOutput;
   }else{
     setLastErrorString("programTargetADCMove(invalid target ADC)");
     raiseError = true;

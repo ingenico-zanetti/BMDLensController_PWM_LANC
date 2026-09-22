@@ -219,7 +219,7 @@ static bool plusWrite(Stream *stream, Servo *servo, const char c, const char *sz
       // Is it a SetPoint ?
       if(values[0].hasDot){
         SetPoint setPoint = {0, 0};
-        Serial.printf("starts with a SetPoint, ");
+        // Serial.printf("starts with a SetPoint, ");
         if(Servo::stringToSetPointSetting(values[0].stringStart, values[0].count, &setPoint)){
           servo->setLastErrorString("SetPoint the syntax is not correct.");
           return(true);
@@ -282,7 +282,7 @@ static bool plusWrite(Stream *stream, Servo *servo, const char c, const char *sz
               
             }else{
               // Syntax: AT+X=0
-              Serial.printf("SpeedMode: request to stop" "\n");
+              // Serial.printf("SpeedMode: request to stop" "\n");
               servo->reset("Speed=0");
             }
           }
