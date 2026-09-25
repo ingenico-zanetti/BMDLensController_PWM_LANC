@@ -34,11 +34,7 @@ static bool plusRead(Stream *stream, Servo *servo, const char c, const char *szS
   (void)szString;
   (void)comas;
   (void)c;
-  stream->printf("%s: [adc=%4d], .kP=%+3d, .kI=%+3d, .kD=%+3d" "\n", 
-      servo->getName(),
-      servo->getAdcValue(),
-      servo->getKP(), servo->getKI(), servo->getKD()
-  );
+  servo->print(stream, "");
   return(false);
 }
 
@@ -60,7 +56,7 @@ static bool plusRead(Stream *stream, Servo *servo, const char c, const char *szS
  * AT+X={+|-}dddM   => move X axis for ddd milliseconds, backward or forward
  * AT+F=+40m
  * AT+F=-100m
- * All the above syntaxes allow for an optional parameter, the maximum speed, in the range [1..16].
+ * All the above syntaxes allow for an optional parameter, the maximum speed, in the range [1..192].
  * The speed setting will remaing active until changed
  * Notice, however, that some axis might not support the lowest speeds, but don't report any error in that case.
  * Example:
@@ -90,7 +86,7 @@ static bool plusRead(Stream *stream, Servo *servo, const char c, const char *szS
  * AT+I=5.6,,2300 set the adcValue for setting 5.6 to 2300 for iris
  *
  * Programming syntax for PID parameters
- * AT+X=Y,ddd
+ * AT+X=K,{-+}ddd.ddd
  * Examples:
  * AT+I=P,22.3  set the proportional coefficient to 22.3
  * AT+I=I,0.3   set the integral coefficient to 0.3
@@ -147,7 +143,11 @@ static bool getNumericalValue(const char *szString, NumericalValue_t *value){
 static bool getPIDParameter(const char *szString, float *value){
   NumericalValue_t number;
   if(getNumericalValue(szString, &number)){
-    *value = number.value;
+    if(-1 == number.sign){
+      *value = -number.value;
+    }else{
+      *value = number.value;
+    }
     return(true);
   }
   return(false);
@@ -163,19 +163,19 @@ static bool plusWrite(Stream *stream, Servo *servo, const char c, const char *sz
   if((1 == numberOfComas) && ('P' == first)){
     // kP parameter
     float value;
-    if(getPIDParameter(szString + offset, &value)){
+    if(getPIDParameter(szString + offset + 2, &value)){
       raiseError = servo->setKP(value);
     }
   }else if((1 == numberOfComas) && ('I' == first)){
     // kI parameter
     float value = 0.0;
-    if(getPIDParameter(szString + offset, &value)){
+    if(getPIDParameter(szString + offset + 2, &value)){
       raiseError = servo->setKI(value);
     }
   }else if((1 == numberOfComas) && ('D' == first)){
     // kD parameter
     float value = 0.0;
-    if(getPIDParameter(szString + offset, &value)){
+    if(getPIDParameter(szString + offset + 2, &value)){
       raiseError = servo->setKD(value);
     }
   }else{
@@ -221,11 +221,11 @@ static bool plusWrite(Stream *stream, Servo *servo, const char c, const char *sz
         SetPoint setPoint = {0, 0};
         // Serial.printf("starts with a SetPoint, ");
         if(Servo::stringToSetPointSetting(values[0].stringStart, values[0].count, &setPoint)){
-          servo->setLastErrorString("SetPoint the syntax is not correct.");
+          servo->setLastErrorString("SetPoint: the syntax is not correct");
           return(true);
         }else{
           if(servo->getAdcValueFromSetting(&setPoint)){
-            servo->setLastErrorString("SetPoint not valid.");
+            servo->setLastErrorString("SetPoint: not valid");
             return(true);
           }else{
             if(2 == numberOfComas){
@@ -300,6 +300,9 @@ static bool plusWrite(Stream *stream, Servo *servo, const char c, const char *sz
             int targetADC = (int)servo->getAdcValue() + values[0].sign * uintValue;
             if(servo->isAdcTargetValid(targetADC)){
               servo->programTargetADCMove(targetADC, pwmSetting, moveTimeMillisecond);
+            }else{
+              raiseError = true;
+              servo->setLastErrorString("invalid targetADC");
             }
           }
         }
@@ -307,6 +310,7 @@ static bool plusWrite(Stream *stream, Servo *servo, const char c, const char *sz
     }else{
       if(-1 != pwmSetting){
         Serial.printf("pwmSetting=%d" "\n", pwmSetting);
+        servo->setPwmRatioMax(pwmSetting);
       }else{
         raiseError = true;
         Serial.printf("missing first number or pwmSetting" "\n");

@@ -81,9 +81,9 @@ const ServoSettings zoomSettings = {
     { 0, 0}
   },
   .parameters = {
-    .pidP = 16 * 256 + 12,
-    .pidI = 0 * 256,
-    .pidD = 0 * 256,
+    .pidP = -256,
+    .pidI = -32,
+    .pidD = 0,
     .flags = 0
   }
 };
@@ -101,9 +101,9 @@ const ServoSettings irisSettings = {
     { 0, 0}
   },
   .parameters = {
-    .pidP = 16 * 256 + 18,
-    .pidI = 0 * 256,
-    .pidD = 0 * 256,
+    .pidP = -256,
+    .pidI = -32,
+    .pidD = 0,
     .flags = 0
   }
 };
@@ -126,9 +126,9 @@ const ServoSettings focusSettings = {
     { 0, 0}
   },
   .parameters = {
-    .pidP = 16 * 256 + 130,
-    .pidI = 8 * 256,
-    .pidD = 4 * 256,
+    .pidP = 256,
+    .pidI = 32,
+    .pidD = 0,
     .flags = FLAG_POSITIVE_DIRECTION
   }
 };

@@ -16,11 +16,12 @@ public:
 public:
     PIDController(): prevError(0.0f), integral(0.0f), minOutput(0.0f), maxOutput(0.0f) {}
 
-    float compute(float currentVal, float dt) {
+    float compute(float currentVal, float dt, float *diff) {
         if (dt <= 0.0f) return 0.0f;
 
         // 1. Calculate Error
         float error = setpoint - currentVal;
+        *diff = error;
 
         // 2. Proportional Term
         float pOut = kP * error;
@@ -35,6 +36,24 @@ public:
 
         // 5. Total Output
         float output = pOut + iOut + dOut;
+
+#if (SERVO_LOOP_DIVIDER > 1)
+    char floatAsString[32];
+    dtostrf(setpoint, 6, 3, floatAsString);
+    Serial.printf("compute:sp=%s,", floatAsString);
+    dtostrf(currentVal, 6, 3, floatAsString);
+    Serial.printf("cV=%s,", floatAsString);
+    dtostrf(error, 6, 3, floatAsString);
+    Serial.printf("err=%s,", floatAsString);
+    dtostrf(pOut, 6, 3, floatAsString);
+    Serial.printf("pOut=%s,", floatAsString);
+    dtostrf(iOut, 6, 3, floatAsString);
+    Serial.printf("iOut=%s,", floatAsString);
+    dtostrf(dOut, 6, 3, floatAsString);
+    Serial.printf("dOut=%s,", floatAsString);
+    dtostrf(output, 6, 3, floatAsString);
+    Serial.printf("=>%s" "\n", floatAsString);
+#endif
 
         // Clamp Output to Actuator Limits
         if (output > maxOutput) {
@@ -55,7 +74,9 @@ public:
 
 class Servo {
   public:
+    void pidOutputToPWM(float pidOutput, float diff);
     static const int PWM_RATIO_HARD_LIMIT = 0xC0; // 8-bit PWM, but beyond 0xC0, the hardware behaviour is not predictable
+//    static const int PWM_RATIO_HARD_LIMIT = 0x40; // 8-bit PWM, but beyond 0xC0, the hardware behaviour is not predictable
 
     // possible mode, either through UART/CDC-ACM coammands or LANC
     static const int MOVE_MODE_NONE       = -1; // no move requested
@@ -115,6 +136,13 @@ class Servo {
     } timed_move_context;
 
     struct {
+      uint32_t msBetweenTargetAdcIncrement; // Update target ADC every msBetweenTargetAdcIncrement millisecond ; for example once every 16 ms
+      uint32_t msWaited;                    // current value trying to reach the above threshold
+      int32_t  targetADC;                   // where we would like to be
+      int32_t  targetADCIncrement;          // +1/-1
+    } speed_move_context;
+
+    struct {
       int mode;
       uint32_t timeMs;
 
@@ -160,16 +188,14 @@ class Servo {
     bool timedMoveInit(uint32_t milliseconds);
 
     int everyMilliSecond(void); // called every millisecond
-    bool runPID(void);
     int16_t getKP(void);
     int16_t getKI(void);
     int16_t getKD(void);
     bool setKP(float value);
     bool setKI(float value);
     bool setKD(float value);
-    bool setSpeedAndDirection(int speed, int direction);
-    // bool updateTarget(void);
 
+    bool setSpeedAndDirection(int speed, int direction);
     bool programOpenLoopMove(uint32_t durationMillisecond, int direction, int32_t pwm);
     bool programTargetADCMove(uint16_t targetADC, uint32_t pwmSetting, uint32_t moveTimeMillisecond);
 

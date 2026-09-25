@@ -1,6 +1,12 @@
 #ifndef __GLOBAL_CONFIGURATION_HPP_INCLUDED__
 #define __GLOBAL_CONFIGURATION_HPP_INCLUDED__
 
+#define SERVO_LOOP_DIVIDER (1)
+#if (SERVO_LOOP_DIVIDER > 1)
+#warning servoDivider
+#endif
+
+
 // #define __T14X5POINT5DA_D24__
 // #define __S20X6POINT4BMD_DSD__
 // #define __A17X9BMD_D24__
