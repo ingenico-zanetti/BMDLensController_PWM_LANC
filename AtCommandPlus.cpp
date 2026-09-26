@@ -269,6 +269,7 @@ static bool plusWrite(Stream *stream, Servo *servo, const char c, const char *sz
             // Syntax: AT+X=<speed>{+-}
             if((0 < uintValue) && (uintValue <= (uint32_t)8)){
               Serial.printf("Request speed %d with direction %+d" "\n", uintValue, signAfter);
+              servo->setSpeedAndDirection(uintValue, signAfter);
             }else{
               raiseError = true;
               servo->setLastErrorString("invalid speed, must be [1 .. 8]");

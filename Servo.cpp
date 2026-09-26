@@ -371,6 +371,9 @@ int Servo::everyMilliSecond(void){
   if(MOVE_MODE_NONE == mode){
     return(0);
   }
+  if(MOVE_MODE_SPEED == mode){
+    updateTarget();
+  }
   if(MOVE_MODE_ADC == mode){
     float currentADCFloat = (float)getAdcValue();
     float diff = 0.0f;
@@ -593,10 +596,34 @@ int Servo::getClosestSettingIndexFromAdcValue(unsigned short adc){
 }
 
 bool Servo::setSpeedAndDirection(int speed, int direction){
-  reset("new Spped and Direction");
-  (void)speed;
-  (void)direction;
-  return(false);
+  reset("new Speed and Direction");
+/*
+    struct {
+      uint32_t msBetweenTargetAdcIncrement; // Update target ADC every msBetweenTargetAdcIncrement millisecond ; for example once every 16 ms
+      uint32_t msWaited;                    // current value trying to reach the above threshold
+      int32_t  targetADC;                   // where we would like to be
+      int32_t  targetADCIncrement;          // +1/-1
+    } speed_move_context;
+*/
+
+  bool raiseError = false;
+  speed_move_context.msBetweenTargetAdcIncrement = 1 << (8 - speed); // 8 => (1 << 0) => 1, 7 => (1 << 1) => 2, .. , 1 => (1 << 7) => 128
+  speed_move_context.msWaited = 0;
+
+  int increment = -1;  
+  if(DIRECTION_BACKWARD == direction){
+    increment = +1;
+  }
+  if(0 == (flags & FLAG_POSITIVE_DIRECTION)){
+    increment = -increment;
+  }
+  speed_move_context.targetADCIncrement = increment;
+  speed_move_context.targetADC = getAdcValue();
+
+  pid.reset();
+  mode = MOVE_MODE_SPEED;
+
+  return(raiseError);
 }
 
 int16_t Servo::getKP(void){
@@ -653,22 +680,22 @@ bool Servo::setKD(float value){
 
 bool Servo::updateTarget(void){
   if(MOVE_MODE_SPEED == mode){
+#if SERVO_LOOP_DIVIDER > 1
+    Serial.printf("%s():SPEED,msB=%d,msW=%d,tADC=%d=>", __func__, speed_move_context.msBetweenTargetAdcIncrement, speed_move_context.msWaited, speed_move_context.targetADC);
+#endif
     speed_move_context.msWaited++;
     if(speed_move_context.msBetweenTargetAdcIncrement == speed_move_context.msWaited){
       speed_move_context.msWaited = 0;
       speed_move_context.targetADC += speed_move_context.targetADCIncrement;
     }
-    
+#if SERVO_LOOP_DIVIDER > 1
+    Serial.printf("msB=%d,msW=%d,tADC=%d" "\n", speed_move_context.msBetweenTargetAdcIncrement, speed_move_context.msWaited, speed_move_context.targetADC);
+#endif
   }
   return(false);
 }
 
 bool Servo::programOpenLoopMove(uint32_t durationMillisecond, int direction, int32_t pwm){
-  #if 0
-  (void)durationMillisecond;
-  (void)direction;
-  (void)pwm;
-  #endif
   reset("new open-loop move");
   bool raiseError = true;
   if(durationMillisecond > 0){
