@@ -65,7 +65,7 @@ Servo *getServo(int c){
 
 // Order is complicated:
 // - SetPoints are sorted by setting (i.e 1.5m focus, 30mm zoom or f/5.6)
-// - ADC values can increase with increasing setting or jsut the opposite
+// - ADC values can increase with increasing setting or just the opposite
 // - "positive" polarity on motor driver can lead to either increase or decrease in ADC value
 // Here, we just want a qucik way to test the "within" condition, so the lowest value is the lowest ADC value
 // The test valid(adcValue) becomes (adcLowestValue <= adcValue) && (adcValue <= adcHighestValue)
@@ -87,9 +87,9 @@ void Servo::loadSettingsFromMemory(const ServoSettings *settings){
     setPoints[setPointCount] = settings->setPoints[setPointCount];
     setPointCount++;
   }
-  pid.kP = (float)(settings->parameters.pidP / 256.0);
-  pid.kI = (float)(settings->parameters.pidI / 256.0);
-  pid.kD = (float)(settings->parameters.pidD / 256.0);
+  pid.kP = settings->parameters.pidP;
+  pid.kI = settings->parameters.pidI;
+  pid.kD = settings->parameters.pidD;
   flags = settings->parameters.flags;
   updateBoundaries();
 }
@@ -120,9 +120,9 @@ void Servo::storeSettingsToEEPROM(){
     temp.setPoints[count] = setPoints[count];
     count++;
   }
-  temp.parameters.pidP = getKP();
-  temp.parameters.pidI = getKI();
-  temp.parameters.pidD = getKD();
+  temp.parameters.pidP = pid.kP;
+  temp.parameters.pidI = pid.kI;
+  temp.parameters.pidD = pid.kD;
   temp.parameters.flags = flags;
   
   EEPROM.put(eepromOffset, temp);
@@ -373,21 +373,10 @@ int Servo::everyMilliSecond(void){
   }
   if(MOVE_MODE_SPEED == mode){
     updateTarget();
+    runPid();
   }
   if(MOVE_MODE_ADC == mode){
-    float currentADCFloat = (float)getAdcValue();
-    float diff = 0.0f;
-    float timeStep = 0.001f;
-#if SERVO_LOOP_DIVIDER > 1
-    timeStep *= (float)SERVO_LOOP_DIVIDER;
-#endif
-    float pidOutput = pid.compute(currentADCFloat, timeStep, &diff);
-    pidOutputToPWM(pidOutput, diff);
-#if (SERVO_LOOP_DIVIDER > 1)
-    char floatAsString[32];
-    dtostrf(pidOutput, 6, 3, floatAsString);
-    Serial.printf("pidOutput=%s" "\n", floatAsString);
-#endif
+    runPid();
   }
   
   if(MOVE_MODE_DURATION == mode){
@@ -595,6 +584,31 @@ int Servo::getClosestSettingIndexFromAdcValue(unsigned short adc){
   }
 }
 
+bool Servo::updatePidTarget(uint16_t newTargetAdc){
+#if SERVO_LOOP_DIVIDER > 1
+  Serial.printf("%s(%d)" "\n", __func__, newTargetAdc);
+#endif
+  if((adcLowestValue <= newTargetAdc) && (newTargetAdc <= adcHighestValue)){
+    pid.setpoint = (float)newTargetAdc;
+#if SERVO_LOOP_DIVIDER > 1
+  Serial.printf("pid.setpoint=%d", newTargetAdc);
+#endif
+    return true;
+  }
+  return false;
+}
+
+void Servo::runPid(void){
+  float currentADCFloat = (float)getAdcValue();
+  float timeStep = 0.001f;
+#if SERVO_LOOP_DIVIDER > 1
+  timeStep *= (float)SERVO_LOOP_DIVIDER;
+#endif
+  float diff = 0.0f;
+  float pidOutput = pid.compute(currentADCFloat, timeStep, &diff);
+  pidOutputToPWM(pidOutput, diff);
+}
+
 bool Servo::setSpeedAndDirection(int speed, int direction){
   reset("new Speed and Direction");
 /*
@@ -622,20 +636,9 @@ bool Servo::setSpeedAndDirection(int speed, int direction){
 
   pid.reset();
   mode = MOVE_MODE_SPEED;
-
+  updateTarget();
+  runPid();
   return(raiseError);
-}
-
-int16_t Servo::getKP(void){
-  return((int16_t)(pid.kP * 256.0));
-}
-
-int16_t Servo::getKI(void){
-  return((int16_t)(pid.kI * 256.0));
-}
-
-int16_t Servo::getKD(void){
-  return((int16_t)(pid.kD * 256.0));
 }
 
 static bool isValidPIDParameterValue(float value){
@@ -683,11 +686,29 @@ bool Servo::updateTarget(void){
 #if SERVO_LOOP_DIVIDER > 1
     Serial.printf("%s():SPEED,msB=%d,msW=%d,tADC=%d=>", __func__, speed_move_context.msBetweenTargetAdcIncrement, speed_move_context.msWaited, speed_move_context.targetADC);
 #endif
-    speed_move_context.msWaited++;
-    if(speed_move_context.msBetweenTargetAdcIncrement == speed_move_context.msWaited){
-      speed_move_context.msWaited = 0;
-      speed_move_context.targetADC += speed_move_context.targetADCIncrement;
+    if(
+      ((speed_move_context.targetADCIncrement > 0) && (speed_move_context.targetADC >= adcHighestValue)) || 
+      ((speed_move_context.targetADCIncrement < 0) && (speed_move_context.targetADC <= adcLowestValue))
+    ){
+      speed_move_context.targetADCIncrement = 0;
     }
+    if(0 != speed_move_context.targetADCIncrement){
+      speed_move_context.msWaited++;
+      if(speed_move_context.msBetweenTargetAdcIncrement == speed_move_context.msWaited){
+        speed_move_context.msWaited = 0;
+        speed_move_context.targetADC += speed_move_context.targetADCIncrement;
+#if SERVO_LOOP_DIVIDER > 1
+        Serial.printf("%s():SPEED,targetADC is now %d" "\n", __func__, speed_move_context.targetADC);
+#endif
+        updatePidTarget(speed_move_context.targetADC);
+      }
+    }
+#if SERVO_LOOP_DIVIDER > 1
+    else{
+      Serial.printf("targetADCIncrement == 0,");
+    }
+#endif
+
 #if SERVO_LOOP_DIVIDER > 1
     Serial.printf("msB=%d,msW=%d,tADC=%d" "\n", speed_move_context.msBetweenTargetAdcIncrement, speed_move_context.msWaited, speed_move_context.targetADC);
 #endif
@@ -723,14 +744,17 @@ void Servo::pidOutputToPWM(float pidOutput, float diff){
     diff = -diff;
   }
   if(diff < 3.0f){
-    reset("Target ADC reached (diff < 3)");
+    if(MOVE_MODE_SPEED == mode){
+    }else{
+      reset("Target ADC reached (diff < 3)");
+    }
   }else{
     int dir = dirPinPolarity;
     if(pidOutput < 0.0f){
       dir ^= 1;
       pidOutput = -pidOutput;
     }
-    uint16_t pwm = (uint16_t)pidOutput;
+    uint16_t pwm = (uint16_t)(pidOutput + 0);
     if(pwm > pwmRatio.toUse){
       pwm = pwmRatio.toUse;
     }
@@ -751,18 +775,8 @@ bool Servo::programTargetADCMove(uint16_t targetADC, uint32_t pwmSetting, uint32
     reset("new target-ADC move");
     pid.reset();
     mode = MOVE_MODE_ADC;
-    pid.setpoint = (float)targetADC;
-    float currentADCFloat = (float)getAdcValue();
-    float timeStep = 0.001f;
-#if SERVO_LOOP_DIVIDER > 1
-    timeStep *= (float)SERVO_LOOP_DIVIDER;
-#endif
-    float diff = 0.0f;
-    float pidOutput = pid.compute(currentADCFloat, timeStep, &diff);
-    pidOutputToPWM(pidOutput, diff);
-    char floatAsString[32];
-    dtostrf(pidOutput, 6, 3, floatAsString);
-    Serial.printf("pidOutput=%s" "\n", floatAsString);
+    updatePidTarget(targetADC);
+    runPid();
   }else{
     setLastErrorString("programTargetADCMove(invalid target ADC)");
     raiseError = true;

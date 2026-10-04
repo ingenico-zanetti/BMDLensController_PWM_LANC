@@ -32,27 +32,27 @@ public:
 
         // 4. Derivative Term (rate of change)
         float derivative = (error - prevError) / dt;
-        float dOut = kI * derivative;
+        float dOut = kD * derivative;
 
         // 5. Total Output
         float output = pOut + iOut + dOut;
 
 #if (SERVO_LOOP_DIVIDER > 1)
     char floatAsString[32];
-    dtostrf(setpoint, 6, 3, floatAsString);
-    Serial.printf("compute:sp=%s,", floatAsString);
-    dtostrf(currentVal, 6, 3, floatAsString);
-    Serial.printf("cV=%s,", floatAsString);
-    dtostrf(error, 6, 3, floatAsString);
-    Serial.printf("err=%s,", floatAsString);
+//    dtostrf(setpoint, 4, 0, floatAsString);
+//    Serial.printf("sp=%s,", floatAsString);
+//    dtostrf(currentVal, 4, 0, floatAsString);
+//    Serial.printf("%s,", floatAsString);
+//    dtostrf(error, 3, 0, floatAsString);
+//    Serial.printf("%s,", floatAsString);
     dtostrf(pOut, 6, 3, floatAsString);
-    Serial.printf("pOut=%s,", floatAsString);
+    Serial.printf("%s,", floatAsString);
     dtostrf(iOut, 6, 3, floatAsString);
-    Serial.printf("iOut=%s,", floatAsString);
+    Serial.printf("%s,", floatAsString);
     dtostrf(dOut, 6, 3, floatAsString);
-    Serial.printf("dOut=%s,", floatAsString);
+    Serial.printf("%s,", floatAsString);
     dtostrf(output, 6, 3, floatAsString);
-    Serial.printf("=>%s" "\n", floatAsString);
+    Serial.printf("%s" "\n", floatAsString);
 #endif
 
         // Clamp Output to Actuator Limits
@@ -113,6 +113,11 @@ class Servo {
     } pwmRatio;
 
     bool updateTarget(void);
+    bool updatePidTarget(uint16_t newTargetAdc);
+    void runPid(void);
+
+    //bool canAdcTargetBeIncreased(uint16_t currentTarget);
+    //bool canAdcTargetBeDecreased(uint16_t currentTarget);
 
     int getSetPointIndexFromSetting(unsigned short setting);
     int getSetPointPreviousIndexFromSetting(unsigned short setting);
@@ -188,9 +193,6 @@ class Servo {
     bool timedMoveInit(uint32_t milliseconds);
 
     int everyMilliSecond(void); // called every millisecond
-    int16_t getKP(void);
-    int16_t getKI(void);
-    int16_t getKD(void);
     bool setKP(float value);
     bool setKI(float value);
     bool setKD(float value);

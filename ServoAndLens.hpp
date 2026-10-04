@@ -5,7 +5,7 @@
 
 #include <assert.h>
 
-#define MAX_SET_POINTS (14) // DON'T CHANGE !!!
+#define MAX_SET_POINTS (16) // DON'T CHANGE !!!
 
 #define FLAG_POSITIVE_DIRECTION (1 << 0)  // When the direction pin is HIGH, ADC is expected to increase
 
@@ -17,13 +17,13 @@ typedef struct {
 typedef struct {
   SetPoint setPoints[MAX_SET_POINTS];
   struct __attribute__((packed)) {
-    int16_t pidP;
-    int16_t pidI;
-    int16_t pidD;
-    uint16_t flags;
+    float pidP;
+    float pidI;
+    float pidD;
+    uint32_t flags;
   }parameters;
 } ServoSettings;
 
-static_assert(sizeof(ServoSettings) == 64, "sizeof(ServoSettings) must be 64 !");
+static_assert(sizeof(ServoSettings) == 80, "sizeof(ServoSettings) must be 80 !");
 
 #endif // __SERVO_HPP_INCLUDED__

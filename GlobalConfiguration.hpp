@@ -1,7 +1,7 @@
 #ifndef __GLOBAL_CONFIGURATION_HPP_INCLUDED__
 #define __GLOBAL_CONFIGURATION_HPP_INCLUDED__
 
-#define SERVO_LOOP_DIVIDER (100)
+#define SERVO_LOOP_DIVIDER (1)
 #if (SERVO_LOOP_DIVIDER > 1)
 #warning servoDivider
 #endif
