@@ -115,6 +115,7 @@ class Servo {
     bool updateTarget(void);
     bool updatePidTarget(uint16_t newTargetAdc);
     void runPid(void);
+    void runPid_(void);
 
     //bool canAdcTargetBeIncreased(uint16_t currentTarget);
     //bool canAdcTargetBeDecreased(uint16_t currentTarget);
@@ -193,6 +194,10 @@ class Servo {
     bool timedMoveInit(uint32_t milliseconds);
 
     int everyMilliSecond(void); // called every millisecond
+#if (SERVO_LOOP_DIVIDER > 1)
+    uint32_t servoLoopDivider;
+#endif
+
     bool setKP(float value);
     bool setKI(float value);
     bool setKD(float value);

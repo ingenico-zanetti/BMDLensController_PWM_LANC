@@ -210,10 +210,6 @@ static int zoomSpeedFromLanc(int lancSpeed, Stream *usb, Stream *uart){
   }
 }
 
-#if (SERVO_LOOP_DIVIDER > 1)
-static uint32_t servoLoopDivider = 0;
-#endif
-
 void loop() {
   focusServo.readAdc();
   zoomServo.readAdc();
@@ -222,21 +218,9 @@ void loop() {
 
   uint32_t newMillis = millis();
   if(newMillis != oldMillis){
-#if (SERVO_LOOP_DIVIDER > 1)
-    bool runServo = false;
-    servoLoopDivider++;
-    if(SERVO_LOOP_DIVIDER == servoLoopDivider){
-      servoLoopDivider = 0;
-      runServo = true;
-    }
-    if(true == runServo){
-#endif
-        focusServo.everyMilliSecond();
-        zoomServo.everyMilliSecond();
-        irisServo.everyMilliSecond();
-#if (SERVO_LOOP_DIVIDER > 1)
-    }
-#endif
+    focusServo.everyMilliSecond();
+    zoomServo.everyMilliSecond();
+    irisServo.everyMilliSecond();
     oldMillis = newMillis;
 #ifndef __NO_LANC__
     int currentLancIndex = lancIndex;

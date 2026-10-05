@@ -30,6 +30,9 @@ Servo::Servo(const ServoSettings *s, const char *name, unsigned int offset){
   lastErrorString = NULL;
   pid.minOutput = -(float)PWM_RATIO_HARD_LIMIT;
   pid.maxOutput = +(float)PWM_RATIO_HARD_LIMIT;
+#if (SERVO_LOOP_DIVIDER > 1)
+  servoLoopDivider = 0;
+#endif
 }
 
 void Servo::setPins(int adc, int pwm, int dir, int dirPolarity){
@@ -373,10 +376,10 @@ int Servo::everyMilliSecond(void){
   }
   if(MOVE_MODE_SPEED == mode){
     updateTarget();
-    runPid();
+    runPid_();
   }
   if(MOVE_MODE_ADC == mode){
-    runPid();
+    runPid_();
   }
   
   if(MOVE_MODE_DURATION == mode){
@@ -590,9 +593,6 @@ bool Servo::updatePidTarget(uint16_t newTargetAdc){
 #endif
   if((adcLowestValue <= newTargetAdc) && (newTargetAdc <= adcHighestValue)){
     pid.setpoint = (float)newTargetAdc;
-#if SERVO_LOOP_DIVIDER > 1
-  Serial.printf("pid.setpoint=%d", newTargetAdc);
-#endif
     return true;
   }
   return false;
@@ -607,6 +607,22 @@ void Servo::runPid(void){
   float diff = 0.0f;
   float pidOutput = pid.compute(currentADCFloat, timeStep, &diff);
   pidOutputToPWM(pidOutput, diff);
+}
+
+void Servo::runPid_(void){
+#if (SERVO_LOOP_DIVIDER > 1)
+    bool runServo = false;
+    servoLoopDivider++;
+    if(SERVO_LOOP_DIVIDER == servoLoopDivider){
+      servoLoopDivider = 0;
+      runServo = true;
+    }
+    if(true == runServo){
+#endif
+      runPid();
+#if (SERVO_LOOP_DIVIDER > 1)
+    }
+#endif
 }
 
 bool Servo::setSpeedAndDirection(int speed, int direction){
@@ -684,7 +700,7 @@ bool Servo::setKD(float value){
 bool Servo::updateTarget(void){
   if(MOVE_MODE_SPEED == mode){
 #if SERVO_LOOP_DIVIDER > 1
-    Serial.printf("%s():SPEED,msB=%d,msW=%d,tADC=%d=>", __func__, speed_move_context.msBetweenTargetAdcIncrement, speed_move_context.msWaited, speed_move_context.targetADC);
+    // Serial.printf("%s():SPEED,msB=%d,msW=%d,tADC=%d=>", __func__, speed_move_context.msBetweenTargetAdcIncrement, speed_move_context.msWaited, speed_move_context.targetADC);
 #endif
     if(
       ((speed_move_context.targetADCIncrement > 0) && (speed_move_context.targetADC >= adcHighestValue)) || 
@@ -698,19 +714,19 @@ bool Servo::updateTarget(void){
         speed_move_context.msWaited = 0;
         speed_move_context.targetADC += speed_move_context.targetADCIncrement;
 #if SERVO_LOOP_DIVIDER > 1
-        Serial.printf("%s():SPEED,targetADC is now %d" "\n", __func__, speed_move_context.targetADC);
+        // Serial.printf("%s():SPEED,targetADC is now %d" "\n", __func__, speed_move_context.targetADC);
 #endif
         updatePidTarget(speed_move_context.targetADC);
       }
     }
 #if SERVO_LOOP_DIVIDER > 1
     else{
-      Serial.printf("targetADCIncrement == 0,");
+      // Serial.printf("targetADCIncrement == 0,");
     }
 #endif
 
 #if SERVO_LOOP_DIVIDER > 1
-    Serial.printf("msB=%d,msW=%d,tADC=%d" "\n", speed_move_context.msBetweenTargetAdcIncrement, speed_move_context.msWaited, speed_move_context.targetADC);
+    // Serial.printf("msB=%d,msW=%d,tADC=%d" "\n", speed_move_context.msBetweenTargetAdcIncrement, speed_move_context.msWaited, speed_move_context.targetADC);
 #endif
   }
   return(false);
