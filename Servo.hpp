@@ -66,10 +66,12 @@ public:
         return output;
     }
 
-    void reset() {
-        prevError = 0.0f;
+    void init(float currentVal) {
+        float error = setpoint - currentVal;
+        prevError = error;
         integral = 0.0f;
     }
+    
 };
 
 class Servo {
@@ -94,6 +96,7 @@ class Servo {
     SetPoint setPoints[MAX_SET_POINTS];
     uint16_t flags;
     int setPointCount;
+    uint32_t adcIndex;
     uint16_t adcValue;    // as read from the ADC converter and smoothed by the sliding window filter
     uint16_t adcLowestValue; // lowest value from the settings
     uint16_t adcHighestValue; // highest value from the settings

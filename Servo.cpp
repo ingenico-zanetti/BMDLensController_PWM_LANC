@@ -23,13 +23,14 @@ Servo::Servo(const ServoSettings *s, const char *name, unsigned int offset){
   pwmRatio.max = PWM_RATIO_HARD_LIMIT;
   pwmRatio.toUse = pwmRatio.max;
   pwmRatio.programmed = 0;
-  filter = SlidingWindow(name, 4);
+  filter = SlidingWindow(name, 3);
   direction = Servo::DIRECTION_STOPPED;
   mode = MOVE_MODE_NONE;
   open_loop_context.remainingTimeMs = 0;
   lastErrorString = NULL;
   pid.minOutput = -(float)PWM_RATIO_HARD_LIMIT;
   pid.maxOutput = +(float)PWM_RATIO_HARD_LIMIT;
+  adcIndex = 0;
 #if (SERVO_LOOP_DIVIDER > 1)
   servoLoopDivider = 0;
 #endif
@@ -228,6 +229,9 @@ bool Servo::setSetPoint(unsigned short setting, unsigned short adcValue){
 unsigned short Servo::readAdc(void){
   unsigned short newAdcValue = analogRead(adcPin);
   adcValue = filter.input(newAdcValue);
+  if(pwmRatio.programmed){
+    Serial.printf("%d;%d;%d" "\n", adcIndex & 0xFF, newAdcValue, adcValue);
+  }
   return(adcValue);
 }
 
@@ -371,6 +375,10 @@ void Servo::reset(const char *szReason){
 }
 
 int Servo::everyMilliSecond(void){
+  adcIndex++;
+  if(adcIndex & 1){
+    readAdc();
+  }
   if(MOVE_MODE_NONE == mode){
     return(0);
   }
@@ -648,12 +656,10 @@ bool Servo::setSpeedAndDirection(int speed, int direction){
     increment = -increment;
   }
   speed_move_context.targetADCIncrement = increment;
-  speed_move_context.targetADC = getAdcValue();
+  speed_move_context.targetADC = adcValue;
 
-  pid.reset();
   mode = MOVE_MODE_SPEED;
-  updateTarget();
-  runPid();
+  pid.init((float)adcValue);
   return(raiseError);
 }
 
@@ -789,10 +795,9 @@ bool Servo::programTargetADCMove(uint16_t targetADC, uint32_t pwmSetting, uint32
 
   if(isAdcTargetValid(targetADC)){
     reset("new target-ADC move");
-    pid.reset();
     mode = MOVE_MODE_ADC;
     updatePidTarget(targetADC);
-    runPid();
+    pid.init((float)adcValue);
   }else{
     setLastErrorString("programTargetADCMove(invalid target ADC)");
     raiseError = true;

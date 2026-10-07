@@ -211,13 +211,10 @@ static int zoomSpeedFromLanc(int lancSpeed, Stream *usb, Stream *uart){
 }
 
 void loop() {
-  focusServo.readAdc();
-  zoomServo.readAdc();
-  irisServo.readAdc();
-  extender.updateState((digitalRead(ZoomExtSwitch) == LOW) ? 1 : 0);
-
   uint32_t newMillis = millis();
   if(newMillis != oldMillis){
+    extender.updateState((digitalRead(ZoomExtSwitch) == LOW) ? 1 : 0);
+
     focusServo.everyMilliSecond();
     zoomServo.everyMilliSecond();
     irisServo.everyMilliSecond();
