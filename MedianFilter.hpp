@@ -1,24 +1,25 @@
 #ifndef __MEDIAN_FILTER_HPP_INCLUDED__
 #define __MEDIAN_FILTER_HPP_INCLUDED__
 
-#include <stdint.h>
+//  #include <stdint.h>
+
+#include "Arduino.h"
 
 template <uint8_t N>
 class MedianFilter {
-    static_assert(N % 2 != 0, "La taille de la fenêtre doit être impaire.");
-    static_assert(N > 0, "La taille de la fenêtre doit être supérieure à 0.");
+    static_assert(N > 2, "La taille de la fenÃªtre doit Ãªtre supÃ©rieure Ã  2.");
+    static_assert(N % 2 != 0, "La taille de la fenÃªtre doit Ãªtre impaire.");
 
 public:
-    static constexpr uint8_t WINDOW_SIZE = N;
     static constexpr uint8_t MEDIAN_IDX = N / 2;
 
-    explicit MedianFilter(uint16_t init_value = 0) {
+    explicit MedianFilter(const char *name, uint16_t init_value = 0):szName(name) {
         preload(init_value);
     }
 
     /**
-     * @brief Préremplit la fenêtre glissante avec une valeur unique.
-     * Complexité O(N) : aucun tri nécessaire car toutes les valeurs sont identiques.
+     * @brief PrÃ©remplit la fenÃªtre glissante avec une valeur unique.
+     * ComplexitÃ© O(N) : aucun tri nÃ©cessaire car toutes les valeurs sont identiques.
      */
     void preload(uint16_t init_value = 0) {
         head = 0;
@@ -31,21 +32,21 @@ public:
     }
 
     /**
-     * @brief Traitement d'un échantillon en O(N) déterministe (sans branchement conditionnel).
+     * @brief Traitement d'un Ã©chantillon en O(N) dÃ©terministe (sans branchement conditionnel).
      */
     uint16_t update(uint16_t new_val) {
-        // 1. Indice dans sorted_list de l'échantillon le plus ancien
+        // 1. Indice dans sorted_list de l'Ã©chantillon le plus ancien
         const uint8_t fifo_idx = head;
         uint8_t sorted_idx = pos_in_sorted[fifo_idx];
 
-        // 2. Mémorisation du nouvel échantillon dans le buffer FIFO circulaire
+        // 2. MÃ©morisation du nouvel Ã©chantillon dans le buffer FIFO circulaire
         history[fifo_idx] = new_val;
         head = (fifo_idx + 1) % N;
 
-        // 3. Remplacement direct dans la liste triée
+        // 3. Remplacement direct dans la liste triÃ©e
         sorted_list[sorted_idx] = new_val;
 
-        // 4. Maintien de l'ordre par décalages simples
+        // 4. Maintien de l'ordre par dÃ©calages simples
         // Vers la droite
         while (sorted_idx < N - 1 && sorted_list[sorted_idx] > sorted_list[sorted_idx + 1]) {
             swap_sorted(sorted_idx, sorted_idx + 1);
@@ -58,13 +59,21 @@ public:
             --sorted_idx;
         }
 
-        // 5. Lecture directe de la médiane
+        // 5. Lecture directe de la mÃ©diane
         return sorted_list[MEDIAN_IDX];
     }
 
     uint16_t get_median() const {
         return sorted_list[MEDIAN_IDX];
     }
+
+  void print(Stream *stream){
+    stream->printf("[%s] size: %d, sorted=[", szName, N);
+    for(unsigned int i = 0 ; i < N ; i++){
+      stream->printf("%u ", sorted_list[i]);
+    }
+    stream->printf("], filtered=%u" "\n", get_median());
+  }
 
 private:
     inline void swap_sorted(uint8_t i, uint8_t j) {
@@ -73,7 +82,7 @@ private:
         sorted_list[i] = sorted_list[j];
         sorted_list[j] = tmp_val;
 
-        // Permutation des pointeurs croisés
+        // Permutation des pointeurs croisÃ©s
         const uint8_t fifo_i = sorted_to_fifo[i];
         const uint8_t fifo_j = sorted_to_fifo[j];
 
@@ -88,6 +97,7 @@ private:
     uint16_t sorted_list[N];
     uint8_t pos_in_sorted[N];
     uint8_t sorted_to_fifo[N];
+    const char *szName;
 
     uint8_t head;
 };

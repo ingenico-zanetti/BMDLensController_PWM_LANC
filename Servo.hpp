@@ -1,7 +1,7 @@
 #ifndef __SERVO_HPP_INCLUDED__
 #define __SERVO_HPP_INCLUDED__
 
-#include "SlidingWindow.hpp"
+#include "MedianFilter.hpp"
 #include "ServoAndLens.hpp"
 #include "GlobalConfiguration.hpp"
 
@@ -107,7 +107,7 @@ class Servo {
     int dirPin;
     int dirPinPolarity;
     int mode;
-    SlidingWindow filter;
+    MedianFilter<15> filter;
     unsigned int targetAdcValue;
     struct {
       uint32_t toUse;

@@ -10,7 +10,7 @@ Servo irisServo( &irisSettings,  "IRIS",  1 * sizeof(ServoSettings));
 Servo focusServo(&focusSettings, "FOCUS", 2 * sizeof(ServoSettings));
 
 
-Servo::Servo(const ServoSettings *s, const char *name, unsigned int offset){
+Servo::Servo(const ServoSettings *s, const char *name, unsigned int offset):filter(name, 0){
   servoSettingsFromFW = s;
   loadSettingsFromFW();
   eepromOffset = offset;
@@ -23,7 +23,6 @@ Servo::Servo(const ServoSettings *s, const char *name, unsigned int offset){
   pwmRatio.max = PWM_RATIO_HARD_LIMIT;
   pwmRatio.toUse = pwmRatio.max;
   pwmRatio.programmed = 0;
-  filter = SlidingWindow(name, 3);
   direction = Servo::DIRECTION_STOPPED;
   mode = MOVE_MODE_NONE;
   open_loop_context.remainingTimeMs = 0;
@@ -228,9 +227,9 @@ bool Servo::setSetPoint(unsigned short setting, unsigned short adcValue){
 
 unsigned short Servo::readAdc(void){
   unsigned short newAdcValue = analogRead(adcPin);
-  adcValue = filter.input(newAdcValue);
+  adcValue = filter.update(newAdcValue);
   if(pwmRatio.programmed){
-    Serial.printf("%d;%d;%d" "\n", adcIndex & 0xFF, newAdcValue, adcValue);
+    // Serial.printf("%d;%d;%d" "\n", adcIndex & 0xFF, newAdcValue, adcValue);
   }
   return(adcValue);
 }
@@ -376,9 +375,9 @@ void Servo::reset(const char *szReason){
 
 int Servo::everyMilliSecond(void){
   adcIndex++;
-  if(adcIndex & 1){
+  //if(adcIndex & 1){
     readAdc();
-  }
+  //}
   if(MOVE_MODE_NONE == mode){
     return(0);
   }
@@ -429,41 +428,6 @@ int Servo::everyMilliSecond(void){
       }
     }
   }
-#if 0
-  // Serial.printf("%s::run()" "\n", getName());
-  updateTarget();
-  if(Servo::MODE_TIMED_MOVE == mode){
-    if (false == timed_move_context.complete) {
-      timed_move_context.decision += timed_move_context.adcIncrement;
-      while (timed_move_context.decision >= timed_move_context.msIncrement) {
-        timed_move_context.decision -= timed_move_context.msIncrement;
-        timed_move_context.targetADC += timed_move_context.targetADCIncrement;
-      }
-      if (timed_move_context.targetADC == (int32_t)timed_move_context.stopADC) {
-        timed_move_context.complete = true;
-        stopMotor("TIMED_MOVE complete");
-        // Create an absolute move to the requested position
-        // This helps with precision of stop
-        // and with unrealistic timings
-        setTargetAdcValue(timed_move_context.stopADC);
-      }else{
-        targetAdcValue = timed_move_context.targetADC;
-      }
-    }
-    return(timed_move_context.complete);
-  }else{
-    if(Servo::MODE_DURATION == mode){
-      if(remainingTimeMs > 0){
-        if(--remainingTimeMs == 0){
-          stopMotor("TIME");
-        }
-      }
-      return(remainingTimeMs);
-    }else{
-      return(adcValue);
-    }
-  }
-#endif
   return(0);
 }
 
@@ -741,6 +705,9 @@ bool Servo::updateTarget(void){
 bool Servo::programOpenLoopMove(uint32_t durationMillisecond, int direction, int32_t pwm){
   reset("new open-loop move");
   bool raiseError = true;
+  if(0 == durationMillisecond){
+    durationMillisecond = 0x7FFFFFFF;
+  }
   if(durationMillisecond > 0){
     mode = MOVE_MODE_DURATION;
     open_loop_context.remainingTimeMs = durationMillisecond;

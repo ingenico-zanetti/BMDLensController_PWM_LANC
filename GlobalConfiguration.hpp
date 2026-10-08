@@ -1,11 +1,8 @@
 #ifndef __GLOBAL_CONFIGURATION_HPP_INCLUDED__
 #define __GLOBAL_CONFIGURATION_HPP_INCLUDED__
 
+// DO NOT TOUCH: PID coefficients are calibrated with this 16ms period
 #define SERVO_LOOP_DIVIDER (16)
-#if (SERVO_LOOP_DIVIDER > 1)
-#warning servoDivider
-#endif
-
 
 // #define __T14X5POINT5DA_D24__
 // #define __S20X6POINT4BMD_DSD__

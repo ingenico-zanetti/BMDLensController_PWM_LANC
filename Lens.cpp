@@ -101,9 +101,9 @@ const ServoSettings irisSettings = {
     { 0, 0}
   },
   .parameters = {
-    .pidP = -1.0,
-    .pidI = -0.125,
-    .pidD = -0.075,
+    .pidP = -0.500,
+    .pidI = -0.050,
+    .pidD = -0.025,
     .flags = 0
   }
 };
